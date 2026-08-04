@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="800" viewBox="0 0 1600 800">
+  <defs><linearGradient id="s" x2="0" y2="1"><stop stop-color="#06172e"/><stop offset=".65" stop-color="#154b69"/><stop offset="1" stop-color="#e0816a"/></linearGradient><linearGradient id="r" x2="0" y2="1"><stop stop-color="#133f60"/><stop offset="1" stop-color="#071f3b"/></linearGradient></defs>
+  <rect width="1600" height="490" fill="url(#s)"/><rect y="490" width="1600" height="310" fill="url(#r)"/>
+  <path d="M0 500V395h100v105h40V330h80v170h40V420h105v80h45V280h75v220h50V365h95v135h340V390h80v110h45V305h105v195h35V350h75v150h50V405h110v95z" fill="#0d253d"/>
+  <g stroke-linecap="round"><path d="M80 555Q420 310 800 555T1520 555" fill="none" stroke="#3fe2d0" stroke-width="15"/><path d="M150 565Q450 390 780 565T1450 565" fill="none" stroke="#ffc95d" stroke-width="7"/></g>
+  <g fill="#ffe177"><circle cx="90" cy="470" r="5"/><circle cx="190" cy="470" r="5"/><circle cx="1290" cy="470" r="5"/><circle cx="1410" cy="470" r="5"/></g>
+  <path d="M0 690Q220 620 440 690T880 690T1320 690T1760 690" fill="none" stroke="#1b6983" stroke-width="12"/>
+  <text x="42" y="755" fill="#fff" font-family="Arial" font-size="20" opacity=".72">SYNTHETIC DEVELOPMENT PANORAMA · RIVER STUDY</text>
+</svg>

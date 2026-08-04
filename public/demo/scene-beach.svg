@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="800" viewBox="0 0 1600 800">
+  <defs><linearGradient id="s" x2="0" y2="1"><stop stop-color="#50bde2"/><stop offset="1" stop-color="#d8f4ec"/></linearGradient><linearGradient id="w" x2="0" y2="1"><stop stop-color="#1dbcc5"/><stop offset="1" stop-color="#08749d"/></linearGradient></defs>
+  <rect width="1600" height="450" fill="url(#s)"/><rect y="450" width="1600" height="250" fill="url(#w)"/><path d="M0 675Q300 590 600 680T1200 660T1600 640V800H0z" fill="#f5d49c"/>
+  <path d="M0 450L190 345l180 105 160-130 150 130 190-95 150 95 200-115 180 115 170-80 110 75z" fill="#246879" opacity=".8"/>
+  <g fill="none" stroke="#d7ffff" stroke-width="10" opacity=".8"><path d="M0 575Q220 525 440 575T880 575T1320 575T1760 575"/><path d="M0 625Q260 575 520 625T1040 625T1560 625"/></g>
+  <g fill="#0d6659"><path d="M130 680q15-120 28 0z"/><path d="M158 595l-65 20 58 8-48 38 62-25 45 34-28-52 68-18-72 2z"/></g>
+  <text x="42" y="755" fill="#1b5166" font-family="Arial" font-size="20" opacity=".72">SYNTHETIC DEVELOPMENT PANORAMA · COAST STUDY</text>
+</svg>

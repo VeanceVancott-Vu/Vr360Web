@@ -1,0 +1,39 @@
+name: Bug report
+description: Report a reproducible defect
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      placeholder: Include the tour, scene, language, device, and browser.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Panorama viewer
+        - Scene navigation
+        - Map
+        - Audio
+        - Administrator
+        - API / database
+        - Accessibility
+        - Other
+    validations:
+      required: true

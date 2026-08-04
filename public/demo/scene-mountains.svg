@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="800" viewBox="0 0 1600 800">
+  <defs><linearGradient id="s" x2="0" y2="1"><stop stop-color="#132a47"/><stop offset=".7" stop-color="#9ac7ba"/><stop offset="1" stop-color="#efc98d"/></linearGradient><linearGradient id="g" x2="0" y2="1"><stop stop-color="#284d43"/><stop offset="1" stop-color="#142c29"/></linearGradient></defs>
+  <rect width="1600" height="490" fill="url(#s)"/><rect y="490" width="1600" height="310" fill="url(#g)"/>
+  <path d="M0 500L175 250l170 250 225-330 250 330 205-285 210 285 155-210 210 210V800H0z" fill="#314f50"/><path d="M320 500L570 170l250 330-85-58-55 25-110-155-105 150z" fill="#6a8076"/>
+  <path d="M620 625q180-200 360 0z" fill="#bb875d"/><path d="M670 625q130-145 260 0z" fill="#1b3b34"/><circle cx="800" cy="475" r="38" fill="#e2b861"/>
+  <g fill="#f0d995"><rect x="785" y="485" width="30" height="90"/><path d="M750 505h100l-50-55z"/></g>
+  <text x="42" y="755" fill="#fff" font-family="Arial" font-size="20" opacity=".72">SYNTHETIC DEVELOPMENT PANORAMA · MOUNTAIN STUDY</text>
+</svg>

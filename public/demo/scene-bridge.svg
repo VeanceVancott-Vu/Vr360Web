@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="800" viewBox="0 0 1600 800">
+  <defs><linearGradient id="a" x2="0" y2="1"><stop stop-color="#081a35"/><stop offset=".7" stop-color="#6a4d72"/><stop offset="1" stop-color="#f3a65a"/></linearGradient><linearGradient id="b"><stop stop-color="#062d51"/><stop offset=".5" stop-color="#118e9e"/><stop offset="1" stop-color="#062d51"/></linearGradient></defs>
+  <rect width="1600" height="500" fill="url(#a)"/><rect y="500" width="1600" height="300" fill="url(#b)"/>
+  <g fill="#152d45"><path d="M0 500V390h80v110h40V325h75v175h35V410h100v90h45V285h90v215h45V370h75v130h510V405h65v95h50V310h85v190h40V360h100v140h45V410h115v90z"/></g>
+  <path d="M80 575H1520" stroke="#ffcf65" stroke-width="22"/><path d="M560 570Q800 175 1040 570" fill="none" stroke="#ffd75d" stroke-width="32"/><path d="M600 515L800 235l200 280" fill="none" stroke="#fff2b4" stroke-width="5" opacity=".8"/>
+  <g fill="#ffe5a2"><circle cx="250" cy="575" r="7"/><circle cx="400" cy="575" r="7"/><circle cx="1200" cy="575" r="7"/><circle cx="1360" cy="575" r="7"/></g>
+  <text x="42" y="755" fill="#fff" font-family="Arial" font-size="20" opacity=".72">SYNTHETIC DEVELOPMENT PANORAMA · BRIDGE STUDY</text>
+</svg>

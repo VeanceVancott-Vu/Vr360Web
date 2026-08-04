@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="800" viewBox="0 0 1600 800">
+  <defs>
+    <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#092a4a"/><stop offset=".55" stop-color="#6acbd0"/><stop offset="1" stop-color="#ffd28a"/></linearGradient>
+    <linearGradient id="sea" x2="0" y2="1"><stop stop-color="#1aaec2"/><stop offset="1" stop-color="#043b68"/></linearGradient>
+  </defs>
+  <rect width="1600" height="480" fill="url(#sky)"/><rect y="480" width="1600" height="320" fill="url(#sea)"/>
+  <path d="M0 475L140 338l120 112 170-160 155 160 180-100 150 100 200-145 175 145 170-120 160 145v55H0z" fill="#173f50" opacity=".8"/>
+  <circle cx="1280" cy="180" r="54" fill="#ffd56c"/><path d="M250 590Q800 360 1350 590" fill="none" stroke="#ffe29d" stroke-width="20" opacity=".9"/>
+  <path d="M515 490Q630 280 745 490M855 490Q970 280 1085 490" fill="none" stroke="#e9f7f5" stroke-width="12"/>
+  <g fill="#f4c86c"><circle cx="515" cy="490" r="9"/><circle cx="745" cy="490" r="9"/><circle cx="855" cy="490" r="9"/><circle cx="1085" cy="490" r="9"/></g>
+  <text x="42" y="755" fill="#fff" font-family="Arial" font-size="20" opacity=".72">SYNTHETIC DEVELOPMENT PANORAMA · DA NANG 360 EXPLORER</text>
+</svg>

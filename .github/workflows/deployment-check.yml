@@ -1,0 +1,31 @@
+name: Deployment check
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_url:
+        description: HTTPS origin to verify, for example https://tour.example.com
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deployment-check-${{ inputs.deployment_url }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DEPLOYMENT_URL: ${{ inputs.deployment_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run deploy:check

@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="100%" height="100%">
+  <defs>
+    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#0e2b45" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="wallGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#143959" />
+      <stop offset="100%" stop-color="#091f33" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Blueprint Canvas -->
+  <rect width="800" height="500" fill="#061626"/>
+  <rect width="800" height="500" fill="url(#grid)"/>
+
+  <!-- Outer Blueprint Border -->
+  <rect x="15" y="15" width="770" height="470" fill="none" stroke="#13b9c3" stroke-width="2" stroke-dasharray="6,4" opacity="0.4"/>
+
+  <!-- Title Header -->
+  <text x="35" y="42" fill="#38bdf8" font-family="sans-serif" font-size="14" font-weight="bold" letter-spacing="1">SƠ ĐỒ BẢN VẼ MẶT BẰNG NHÀ TRỌ SINH VIÊN (STUDENT HOUSING FLOOR PLAN)</text>
+
+  <!-- ROOM 1: CỔNG LỐI VÀO & XE MÁY (ENTRANCE & PARKING) -->
+  <g id="room-entrance">
+    <rect x="30" y="300" width="180" height="170" fill="url(#wallGlow)" stroke="#38bdf8" stroke-width="3" rx="6"/>
+    <text x="120" y="375" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="bold" text-anchor="middle">CỔNG LỐI VÀO</text>
+    <text x="120" y="395" fill="#94a3b8" font-family="sans-serif" font-size="11" text-anchor="middle">Entrance &amp; Parking</text>
+    <!-- Doorway indicator -->
+    <path d="M 210 370 A 30 30 0 0 1 210 430" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="3,3"/>
+  </g>
+
+  <!-- ROOM 2: BẾP & PHÒNG KHÁCH (KITCHEN & LIVING ROOM) -->
+  <g id="room-living">
+    <rect x="230" y="190" width="220" height="280" fill="url(#wallGlow)" stroke="#38bdf8" stroke-width="3" rx="6"/>
+    <text x="340" y="320" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold" text-anchor="middle">BẾP &amp; PHÒNG KHÁCH</text>
+    <text x="340" y="340" fill="#94a3b8" font-family="sans-serif" font-size="11" text-anchor="middle">Kitchen &amp; Living Room</text>
+  </g>
+
+  <!-- ROOM 3: KHU TỦ GIÀY & KHO (STORAGE LOCKERS) -->
+  <g id="room-storage">
+    <rect x="30" y="60" width="180" height="220" fill="url(#wallGlow)" stroke="#38bdf8" stroke-width="3" rx="6"/>
+    <text x="120" y="160" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="bold" text-anchor="middle">TỦ GIÀY &amp; KHO</text>
+    <text x="120" y="180" fill="#94a3b8" font-family="sans-serif" font-size="11" text-anchor="middle">Storage Lockers</text>
+  </g>
+
+  <!-- ROOM 4: KHU GIẶT & SÂN PHƠI (LAUNDRY YARD) -->
+  <g id="room-laundry">
+    <rect x="230" y="60" width="220" height="110" fill="url(#wallGlow)" stroke="#38bdf8" stroke-width="3" rx="6"/>
+    <text x="340" y="108" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="bold" text-anchor="middle">KHU GIẶT &amp; SÂN PHƠI</text>
+    <text x="340" y="126" fill="#94a3b8" font-family="sans-serif" font-size="11" text-anchor="middle">Laundry Yard</text>
+  </g>
+
+  <!-- ROOM 5: PHÒNG TRỌ SINH VIÊN A (PRIVATE ROOM A) -->
+  <g id="room-a">
+    <rect x="470" y="60" width="290" height="240" fill="url(#wallGlow)" stroke="#38bdf8" stroke-width="3" rx="6"/>
+    <text x="615" y="170" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold" text-anchor="middle">PHÒNG TRỌ SINH VIÊN A</text>
+    <text x="615" y="190" fill="#94a3b8" font-family="sans-serif" font-size="11" text-anchor="middle">Student Private Room A</text>
+  </g>
+
+  <!-- ROOM 6: NHÀ VỆ SINH KHÉP KÍN (ENSUITE BATHROOM) -->
+  <g id="room-bathroom">
+    <rect x="470" y="320" width="290" height="150" fill="url(#wallGlow)" stroke="#38bdf8" stroke-width="3" rx="6"/>
+    <text x="615" y="385" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="bold" text-anchor="middle">NHÀ VỆ SINH KHÉP KÍN</text>
+    <text x="615" y="405" fill="#94a3b8" font-family="sans-serif" font-size="11" text-anchor="middle">Ensuite Bathroom</text>
+  </g>
+</svg>

@@ -1,0 +1,228 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum Role {
+  ADMIN
+}
+
+enum PanoramaType {
+  EQUIRECTANGULAR
+  CUBEMAP
+  MULTIRES
+}
+
+enum HotspotType {
+  SCENE_LINK
+  INFORMATION
+  IMAGE
+  AUDIO
+  EXTERNAL_LINK
+}
+
+enum MediaType {
+  IMAGE
+  AUDIO
+  VIDEO
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique @db.VarChar(254)
+  passwordHash String   @db.VarChar(255)
+  role         Role     @default(ADMIN)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([role])
+  @@map("users")
+}
+
+model Tour {
+  id               String          @id @default(cuid())
+  slug             String          @unique @db.VarChar(80)
+  titleVi          String          @db.VarChar(160)
+  titleEn          String          @db.VarChar(160)
+  descriptionVi    String          @db.Text
+  descriptionEn    String          @db.Text
+  coverImageUrl    String          @db.VarChar(2048)
+  welcomeImageUrl  String          @db.VarChar(2048)
+  defaultSceneId   String?         @unique
+  isPublished      Boolean         @default(false)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  defaultScene     Scene?          @relation("TourDefaultScene", fields: [defaultSceneId], references: [id], onDelete: SetNull)
+  scenes           Scene[]         @relation("TourScenes")
+  floorPlans       FloorPlan[]
+  viewEvents       TourViewEvent[]
+
+  @@index([slug])
+  @@index([isPublished, createdAt])
+  @@map("tours")
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  slug      String   @unique @db.VarChar(80)
+  nameVi    String   @db.VarChar(120)
+  nameEn    String   @db.VarChar(120)
+  icon      String   @db.VarChar(64)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  scenes    Scene[]
+
+  @@index([slug])
+  @@index([sortOrder])
+  @@map("categories")
+}
+
+model Scene {
+  id                   String            @id @default(cuid())
+  tourId               String
+  categoryId           String
+  slug                 String            @db.VarChar(80)
+  titleVi              String            @db.VarChar(160)
+  titleEn              String            @db.VarChar(160)
+  shortDescriptionVi   String            @db.VarChar(300)
+  shortDescriptionEn   String            @db.VarChar(300)
+  fullDescriptionVi    String            @db.Text
+  fullDescriptionEn    String            @db.Text
+  panoramaType         PanoramaType      @default(EQUIRECTANGULAR)
+  panoramaUrl          String?           @db.VarChar(2048)
+  previewImageUrl      String            @db.VarChar(2048)
+  multiresConfig       Json?
+  initialPitch         Float             @default(0)
+  initialYaw           Float             @default(0)
+  initialHfov          Float             @default(90)
+  minimumHfov          Float             @default(45)
+  maximumHfov          Float             @default(120)
+  latitude             Float
+  longitude            Float
+  narrationAudioVi     String?           @db.VarChar(2048)
+  narrationAudioEn     String?           @db.VarChar(2048)
+  attribution          String?           @db.VarChar(500)
+  sortOrder            Int               @default(0)
+  isPublished          Boolean           @default(false)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  tour                 Tour              @relation("TourScenes", fields: [tourId], references: [id], onDelete: Restrict)
+  category             Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  defaultForTours      Tour[]             @relation("TourDefaultScene")
+  hotspots             Hotspot[]          @relation("SceneHotspots")
+  incomingHotspots     Hotspot[]          @relation("HotspotTargetScene")
+  media                Media[]
+  viewEvents           TourViewEvent[]
+  floorPlanMarkers     FloorPlanMarker[]
+
+  @@unique([tourId, slug])
+  @@index([tourId, isPublished, sortOrder])
+  @@index([categoryId, isPublished, sortOrder])
+  @@index([slug])
+  @@map("scenes")
+}
+
+model Hotspot {
+  id            String       @id @default(cuid())
+  sceneId       String
+  type          HotspotType
+  pitch         Float
+  yaw           Float
+  labelVi       String       @db.VarChar(160)
+  labelEn       String       @db.VarChar(160)
+  contentVi     String?      @db.Text
+  contentEn     String?      @db.Text
+  icon          String?      @db.VarChar(64)
+  targetSceneId String?
+  imageUrl      String?      @db.VarChar(2048)
+  audioUrl      String?      @db.VarChar(2048)
+  externalUrl   String?      @db.VarChar(2048)
+  sortOrder     Int          @default(0)
+  isVisible     Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  scene         Scene        @relation("SceneHotspots", fields: [sceneId], references: [id], onDelete: Cascade)
+  targetScene   Scene?       @relation("HotspotTargetScene", fields: [targetSceneId], references: [id], onDelete: SetNull)
+
+  @@index([sceneId, isVisible, sortOrder])
+  @@index([targetSceneId])
+  @@index([type])
+  @@map("hotspots")
+}
+
+model Media {
+  id           String    @id @default(cuid())
+  sceneId      String?
+  type         MediaType
+  url          String    @db.VarChar(2048)
+  thumbnailUrl String?   @db.VarChar(2048)
+  titleVi      String    @db.VarChar(160)
+  titleEn      String    @db.VarChar(160)
+  attribution  String?   @db.VarChar(500)
+  sortOrder    Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  scene        Scene?    @relation(fields: [sceneId], references: [id], onDelete: SetNull)
+
+  @@index([sceneId, sortOrder])
+  @@index([type])
+  @@map("media")
+}
+
+model TourViewEvent {
+  id                 String   @id @default(cuid())
+  tourId             String
+  sceneId            String?
+  eventType          String   @db.VarChar(40)
+  anonymousSessionId String   @db.VarChar(64)
+  createdAt          DateTime @default(now())
+  tour               Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  scene              Scene?   @relation(fields: [sceneId], references: [id], onDelete: SetNull)
+
+  @@index([tourId, createdAt])
+  @@index([sceneId, createdAt])
+  @@index([anonymousSessionId, createdAt])
+  @@map("tour_view_events")
+}
+
+model FloorPlan {
+  id        String            @id @default(cuid())
+  tourId    String
+  titleVi   String            @db.VarChar(160)
+  titleEn   String            @db.VarChar(160)
+  imageUrl  String            @db.VarChar(2048)
+  isDefault Boolean           @default(false)
+  sortOrder Int               @default(0)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  tour      Tour              @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  markers   FloorPlanMarker[]
+
+  @@index([tourId, sortOrder])
+  @@map("floor_plans")
+}
+
+model FloorPlanMarker {
+  id          String    @id @default(cuid())
+  floorPlanId String
+  sceneId     String
+  x           Float
+  y           Float
+  labelVi     String    @db.VarChar(160)
+  labelEn     String    @db.VarChar(160)
+  icon        String    @default("MapPin") @db.VarChar(64)
+  colorTheme  String    @default("blue") @db.VarChar(32)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  floorPlan   FloorPlan @relation(fields: [floorPlanId], references: [id], onDelete: Cascade)
+  scene       Scene     @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+
+  @@index([floorPlanId])
+  @@index([sceneId])
+  @@map("floor_plan_markers")
+}

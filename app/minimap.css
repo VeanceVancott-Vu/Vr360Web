@@ -1,0 +1,67 @@
+.mini-map-preview {
+  position: absolute;
+  z-index: 22;
+  right: 1rem;
+  bottom: 5.1rem;
+  display: grid;
+  width: 12.5rem;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 0;
+  background: rgba(4, 22, 37, 0.78);
+  color: white;
+  text-align: left;
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+}
+
+.mini-map-preview__art {
+  position: relative;
+  height: 6rem;
+  overflow: hidden;
+  background:
+    linear-gradient(
+      140deg,
+      transparent 42%,
+      rgba(255, 255, 255, 0.15) 43% 45%,
+      transparent 46%
+    ),
+    linear-gradient(
+      38deg,
+      transparent 37%,
+      rgba(247, 200, 91, 0.22) 38% 40%,
+      transparent 41%
+    ),
+    radial-gradient(circle at 55% 42%, #d9e5c3 0 6%, transparent 6.5%),
+    linear-gradient(135deg, #c9e1d2, #99ced0);
+}
+
+.mini-map-preview__art::before {
+  position: absolute;
+  top: 50%;
+  left: 56%;
+  width: 1rem;
+  height: 1rem;
+  border: 3px solid white;
+  border-radius: 50% 50% 50% 0;
+  background: var(--sea-500);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  content: "";
+  transform: translate(-50%, -70%) rotate(-45deg);
+}
+
+.mini-map-preview__copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .mini-map-preview {
+    display: none;
+  }
+}

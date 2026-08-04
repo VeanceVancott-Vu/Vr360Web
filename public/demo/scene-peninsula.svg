@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="800" viewBox="0 0 1600 800">
+  <defs><linearGradient id="s" x2="0" y2="1"><stop stop-color="#0b3655"/><stop offset=".6" stop-color="#72c5bf"/><stop offset="1" stop-color="#ffca88"/></linearGradient><linearGradient id="w" x2="0" y2="1"><stop stop-color="#118c9a"/><stop offset="1" stop-color="#063c59"/></linearGradient></defs>
+  <rect width="1600" height="465" fill="url(#s)"/><rect y="465" width="1600" height="335" fill="url(#w)"/>
+  <path d="M0 510L150 210l185 300 115-170 165 170 130-265 210 265 155-195 155 195 170-275 185 275V800H0z" fill="#174c49"/>
+  <path d="M0 570L140 420l140 150 150-80 185 110 170-75 160 100 215-100 175 75 150-95 155 85v210H0z" fill="#267259"/>
+  <path d="M1110 495q90-115 180 0z" fill="#edf6df"/><circle cx="1200" cy="385" r="22" fill="#edf6df"/>
+  <text x="42" y="755" fill="#fff" font-family="Arial" font-size="20" opacity=".72">SYNTHETIC DEVELOPMENT PANORAMA · PENINSULA STUDY</text>
+</svg>
