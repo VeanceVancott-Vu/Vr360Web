@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { FloorMapStudio } from "@/components/admin/FloorMapStudio";
+import { FloorMapStudio } from "@/components/admin/editors/FloorMapStudio";
 import { prisma } from "@/lib/database/client";
 import type { SceneDto } from "@/lib/types";
 

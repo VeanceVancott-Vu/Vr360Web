@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminSidebar } from "@/components/admin/layout/AdminSidebar";
 import { getAdminSession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";

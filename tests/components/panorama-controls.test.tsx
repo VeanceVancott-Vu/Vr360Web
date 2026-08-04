@@ -2,8 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import type { RefObject } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { PanoramaControls } from "@/components/vr/PanoramaControls";
-import type { PanoramaViewerHandle } from "@/components/vr/PanoramaViewer";
+import { PanoramaControls } from "@/components/tour/viewer/PanoramaControls";
+import type { PanoramaViewerHandle } from "@/components/tour/viewer/PanoramaViewer";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 
 describe("PanoramaControls", () => {

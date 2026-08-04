@@ -11,7 +11,7 @@ import {
 import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 
-import type { PanoramaViewerHandle } from "@/components/vr/PanoramaViewer";
+import type { PanoramaViewerHandle } from "./PanoramaViewer";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 
 export function PanoramaControls({

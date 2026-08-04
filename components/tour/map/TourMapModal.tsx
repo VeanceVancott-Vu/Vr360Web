@@ -3,8 +3,8 @@
 import { Compass, Map, MapPin, X } from "lucide-react";
 import { useState } from "react";
 
-import { FloorPlanViewer } from "@/components/map/FloorPlanViewer";
-import { MiniMap } from "@/components/map/MiniMap";
+import { FloorPlanViewer } from "./FloorPlanViewer";
+import { MiniMap } from "./MiniMap";
 import { useDialogFocus } from "@/lib/accessibility/use-dialog-focus";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import type { FloorPlanDto, Language, SceneDto } from "@/lib/types";
@@ -140,7 +140,7 @@ export default function TourMapModal({
               scenes={scenes}
               activeSceneId={activeSceneId}
               language={language}
-              onSelect={(scene) => {
+              onSelect={(scene: SceneDto) => {
                 onSelect(scene);
                 onClose();
               }}
@@ -151,7 +151,7 @@ export default function TourMapModal({
               activeSceneId={activeSceneId}
               language={language}
               label={dictionary.allLocations}
-              onSelect={(scene) => {
+              onSelect={(scene: SceneDto) => {
                 onSelect(scene);
                 onClose();
               }}

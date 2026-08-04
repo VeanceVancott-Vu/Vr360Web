@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { AnalyticsPrivacyControl } from "@/components/privacy/AnalyticsPrivacyControl";
+import { AnalyticsPrivacyControl } from "@/components/tour/header/AnalyticsPrivacyControl";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 
 describe("AnalyticsPrivacyControl", () => {

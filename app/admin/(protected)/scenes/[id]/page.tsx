@@ -1,9 +1,9 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { notFound } from "next/navigation";
 
-import { ResourceTable } from "@/components/admin/ResourceTable";
-import { SceneForm } from "@/components/admin/SceneForm";
-import { SceneHotspotEditor } from "@/components/admin/SceneHotspotEditor";
+import { ResourceTable } from "@/components/admin/layout/ResourceTable";
+import { SceneForm } from "@/components/admin/forms/SceneForm";
+import { SceneHotspotEditor } from "@/components/admin/editors/SceneHotspotEditor";
 import { prisma } from "@/lib/database/client";
 
 function jsonObject(

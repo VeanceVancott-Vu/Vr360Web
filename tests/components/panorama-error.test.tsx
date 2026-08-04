@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { PanoramaErrorState } from "@/components/vr/PanoramaErrorState";
+import { PanoramaErrorState } from "@/components/tour/viewer/PanoramaErrorState";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 
 describe("PanoramaErrorState", () => {

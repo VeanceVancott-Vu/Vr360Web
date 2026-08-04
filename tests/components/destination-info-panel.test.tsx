@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { DestinationInfoPanel } from "@/components/tour/DestinationInfoPanel";
+import { DestinationInfoPanel } from "@/components/tour/panels/DestinationInfoPanel";
 import { demoTour } from "@/lib/demo-data";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 

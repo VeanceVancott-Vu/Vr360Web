@@ -16,7 +16,7 @@ vi.mock("@/lib/pannellum/preload", () => ({
   warmActivePanorama: vi.fn(),
 }));
 
-import { PanoramaViewer } from "@/components/vr/PanoramaViewer";
+import { PanoramaViewer } from "@/components/tour/viewer/PanoramaViewer";
 
 type ViewerListener = (...args: unknown[]) => void;
 

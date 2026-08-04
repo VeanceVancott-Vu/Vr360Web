@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { TourWelcomeScreen } from "@/components/tour/TourWelcomeScreen";
+import { TourWelcomeScreen } from "@/components/tour/header/TourWelcomeScreen";
 import { getPublishedTour } from "@/lib/repositories/tour-repository";
 
 export const dynamic = "force-dynamic";

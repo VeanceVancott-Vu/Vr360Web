@@ -6,8 +6,8 @@ import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
-import { AdminField } from "@/components/admin/SceneForm";
-import type { PickedCoordinates } from "@/components/admin/HotspotCoordinatePicker";
+import { AdminField } from "@/components/admin/forms/SceneForm";
+import type { PickedCoordinates } from "@/components/admin/editors/HotspotCoordinatePicker";
 import type { HotspotDto } from "@/lib/types";
 import { hotspotInputSchema } from "@/lib/validation/schemas";
 

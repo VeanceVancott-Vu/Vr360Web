@@ -4,7 +4,7 @@ import { Compass, Copy, Crosshair, Eye, MapPin, Move, Plus, Trash2, X } from "lu
 import Image from "next/image";
 import { useRef, useState } from "react";
 
-import { PanoramaViewer, type PanoramaViewerHandle } from "@/components/vr/PanoramaViewer";
+import { PanoramaViewer, type PanoramaViewerHandle } from "@/components/tour/viewer/PanoramaViewer";
 import type { HotspotDto, SceneDto } from "@/lib/types";
 
 export interface PickedCoordinates {

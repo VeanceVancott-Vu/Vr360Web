@@ -10,8 +10,8 @@ import {
 } from "react";
 import type { Viewer } from "pannellum";
 
-import { PanoramaErrorState } from "@/components/vr/PanoramaErrorState";
-import { PanoramaLoadingOverlay } from "@/components/vr/PanoramaLoadingOverlay";
+import { PanoramaErrorState } from "./PanoramaErrorState";
+import { PanoramaLoadingOverlay } from "./PanoramaLoadingOverlay";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { createViewerConfig } from "@/lib/pannellum/config";
 import { warmActivePanorama } from "@/lib/pannellum/preload";

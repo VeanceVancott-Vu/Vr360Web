@@ -1,5 +1,5 @@
-import { AdminFloorPlanForm } from "@/components/admin/AdminFloorPlanForm";
-import { FloorMapCardActions } from "@/components/admin/FloorMapCardActions";
+import { AdminFloorPlanForm } from "@/components/admin/forms/AdminFloorPlanForm";
+import { FloorMapCardActions } from "@/components/admin/editors/FloorMapCardActions";
 import { prisma } from "@/lib/database/client";
 
 export default async function AdminFloorMapsPage() {

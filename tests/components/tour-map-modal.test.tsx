@@ -2,11 +2,11 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import TourMapModal from "@/components/map/TourMapModal";
+import TourMapModal from "@/components/tour/map/TourMapModal";
 import { demoTour } from "@/lib/demo-data";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 
-vi.mock("@/components/map/MiniMap", () => ({
+vi.mock("@/components/tour/map/MiniMap", () => ({
   MiniMap: ({ label }: { label: string }) => (
     <div data-testid="street-map">{label}</div>
   ),

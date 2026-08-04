@@ -3,7 +3,7 @@
 import { ExternalLink, X } from "lucide-react";
 import Image from "next/image";
 
-import { AudioNarrationPlayer } from "@/components/audio/AudioNarrationPlayer";
+import { AudioNarrationPlayer } from "./AudioNarrationPlayer";
 import { useDialogFocus } from "@/lib/accessibility/use-dialog-focus";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import type { HotspotDto, Language, SceneDto } from "@/lib/types";

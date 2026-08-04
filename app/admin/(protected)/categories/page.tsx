@@ -1,4 +1,4 @@
-import { ResourceTable } from "@/components/admin/ResourceTable";
+import { ResourceTable } from "@/components/admin/layout/ResourceTable";
 import { prisma } from "@/lib/database/client";
 
 export default async function AdminCategoriesPage() {

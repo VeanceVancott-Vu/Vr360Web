@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { HotspotForm } from "@/components/admin/HotspotForm";
+import { HotspotForm } from "@/components/admin/forms/HotspotForm";
 
 describe("HotspotForm conditional validation", () => {
   afterEach(() => {

@@ -1,4 +1,4 @@
-import { SceneForm } from "@/components/admin/SceneForm";
+import { SceneForm } from "@/components/admin/forms/SceneForm";
 import { prisma } from "@/lib/database/client";
 
 export default async function NewScenePage() {

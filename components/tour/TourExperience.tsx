@@ -12,22 +12,22 @@ import {
   useSyncExternalStore,
 } from "react";
 
-import { AnalyticsPrivacyControl } from "@/components/privacy/AnalyticsPrivacyControl";
-import { DestinationInfoPanel } from "@/components/tour/DestinationInfoPanel";
-import { ImageLightbox } from "@/components/tour/ImageLightbox";
-import { SceneSidebar } from "@/components/tour/SceneSidebar";
-import { TourFloorPlanCard } from "@/components/tour/TourFloorPlanCard";
-import { TourHeader } from "@/components/tour/TourHeader";
+import { AnalyticsPrivacyControl } from "@/components/tour/header/AnalyticsPrivacyControl";
+import { DestinationInfoPanel } from "@/components/tour/panels/DestinationInfoPanel";
+import { ImageLightbox } from "@/components/tour/panels/ImageLightbox";
+import { SceneSidebar } from "@/components/tour/panels/SceneSidebar";
+import { TourFloorPlanCard } from "@/components/tour/map/TourFloorPlanCard";
+import { TourHeader } from "@/components/tour/header/TourHeader";
 import {
   ViewerStateProvider,
   ViewerStatusAnnouncer,
-} from "@/components/tour/ViewerStateContext";
-import { PanoramaControls } from "@/components/vr/PanoramaControls";
+} from "@/components/tour/context/ViewerStateContext";
+import { PanoramaControls } from "@/components/tour/viewer/PanoramaControls";
 import {
   PanoramaViewer,
   type PanoramaViewerHandle,
-} from "@/components/vr/PanoramaViewer";
-import { SceneTransitionOverlay } from "@/components/vr/SceneTransitionOverlay";
+} from "@/components/tour/viewer/PanoramaViewer";
+import { SceneTransitionOverlay } from "@/components/tour/viewer/SceneTransitionOverlay";
 import {
   analyticsSessionToken,
   clearAnalyticsSessionToken,
@@ -45,7 +45,7 @@ import {
 import type { HotspotDto, Language, SceneDto, TourDto } from "@/lib/types";
 import { isSafeExternalUrl, parseSceneSlug, sceneHref } from "@/lib/utils/url";
 
-const TourMapModal = dynamic(() => import("@/components/map/TourMapModal"), {
+const TourMapModal = dynamic(() => import("@/components/tour/map/TourMapModal"), {
   ssr: false,
   loading: () => (
     <div className="toast" role="status">

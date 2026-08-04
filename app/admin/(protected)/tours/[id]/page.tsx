@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { TourForm } from "@/components/admin/TourForm";
+import { TourForm } from "@/components/admin/forms/TourForm";
 import { prisma } from "@/lib/database/client";
 
 export default async function EditTourPage({

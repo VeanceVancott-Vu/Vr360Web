@@ -2,7 +2,7 @@ import { Compass } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { AdminLoginForm } from "@/components/admin/AdminLoginForm";
+import { AdminLoginForm } from "@/components/admin/forms/AdminLoginForm";
 
 export const metadata = { title: "Administrator sign in" };
 

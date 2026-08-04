@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   ViewerStateProvider,
   ViewerStatusAnnouncer,
-} from "@/components/tour/ViewerStateContext";
+} from "@/components/tour/context/ViewerStateContext";
 
 describe("ViewerStateContext", () => {
   it("announces the active scene in the selected language", () => {

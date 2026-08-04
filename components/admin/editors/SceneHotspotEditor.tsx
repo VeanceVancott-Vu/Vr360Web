@@ -6,8 +6,8 @@ import { useState } from "react";
 import {
   HotspotCoordinatePicker,
   type PickedCoordinates,
-} from "@/components/admin/HotspotCoordinatePicker";
-import { HotspotForm } from "@/components/admin/HotspotForm";
+} from "./HotspotCoordinatePicker";
+import { HotspotForm } from "@/components/admin/forms/HotspotForm";
 import type { HotspotDto, SceneDto } from "@/lib/types";
 
 export function SceneHotspotEditor({

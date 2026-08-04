@@ -1,7 +1,7 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
 
-import { ResourceTable } from "@/components/admin/ResourceTable";
+import { ResourceTable } from "@/components/admin/layout/ResourceTable";
 import { prisma } from "@/lib/database/client";
 
 export default async function AdminToursPage() {

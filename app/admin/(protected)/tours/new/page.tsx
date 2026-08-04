@@ -1,4 +1,4 @@
-import { TourForm } from "@/components/admin/TourForm";
+import { TourForm } from "@/components/admin/forms/TourForm";
 
 export default function NewTourPage() {
   return (
