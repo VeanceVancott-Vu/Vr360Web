@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const healthMocks = vi.hoisted(() => ({
   queryRaw: vi.fn(),
@@ -51,6 +51,14 @@ import { GET as health } from "@/app/api/health/route";
 import { GET as liveness } from "@/app/api/health/live/route";
 import { ServerEnvironmentError } from "@/lib/env.server";
 
+beforeEach(() => {
+  vi.stubEnv("APP_VERSION", "test-release");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe("readiness endpoint", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -77,7 +85,7 @@ describe("readiness endpoint", () => {
     });
     expect(healthMocks.queryRaw).not.toHaveBeenCalled();
     expect(response.headers.get("cache-control")).toContain("no-store");
-    expect(response.headers.get("x-dn360-release")).toBe("1.0.0");
+    expect(response.headers.get("x-dn360-release")).toBe("test-release");
   });
 
   it("checks the database in database mode", async () => {
@@ -158,7 +166,7 @@ describe("liveness endpoint", () => {
       data: {
         service: "ok",
         liveness: "alive",
-        release: "1.0.0",
+        release: "test-release",
       },
     });
     expect(healthMocks.queryRaw).not.toHaveBeenCalled();
