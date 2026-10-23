@@ -14,15 +14,27 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { adminRequest } from "@/lib/api/admin-client";
+
 export function AdminSidebar({ email }: { email: string }) {
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
   async function signOut() {
     setSigningOut(true);
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.replace("/admin/login");
-    router.refresh();
+    setSignOutError(null);
+    try {
+      await adminRequest<unknown>("/api/auth/logout", { method: "POST" });
+      router.replace("/admin/login");
+      router.refresh();
+    } catch (error: unknown) {
+      setSignOutError(
+        error instanceof Error ? error.message : "Unable to sign out.",
+      );
+    } finally {
+      setSigningOut(false);
+    }
   }
 
   return (
@@ -57,6 +69,11 @@ export function AdminSidebar({ email }: { email: string }) {
         <small style={{ display: "block", color: "var(--muted)" }}>
           {email}
         </small>
+        {signOutError ? (
+          <p className="field-error" role="alert">
+            {signOutError}
+          </p>
+        ) : null}
         <button
           className="secondary-button"
           style={{ marginTop: "0.75rem" }}

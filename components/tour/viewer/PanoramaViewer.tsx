@@ -13,7 +13,10 @@ import type { Viewer } from "pannellum";
 import { PanoramaErrorState } from "./PanoramaErrorState";
 import { PanoramaLoadingOverlay } from "./PanoramaLoadingOverlay";
 import { getDictionary } from "@/lib/i18n/dictionaries";
-import { createViewerConfig } from "@/lib/pannellum/config";
+import {
+  createHotspotConfig,
+  createViewerConfig,
+} from "@/lib/pannellum/config";
 import { warmActivePanorama } from "@/lib/pannellum/preload";
 import type { HotspotDto, Language, SceneDto } from "@/lib/types";
 
@@ -88,7 +91,8 @@ export const PanoramaViewer = forwardRef<
   const desiredSceneRef = useRef(scene);
   const desiredLanguageRef = useRef(language);
   const dictionaryRef = useRef(dictionary);
-  const activeViewerKeyRef = useRef<string | null>(null);
+  const activeViewerSceneIdRef = useRef<string | null>(null);
+  const activeViewerLanguageRef = useRef(language);
   const activeViewerSceneRef = useRef(scene);
   desiredSceneRef.current = scene;
   desiredLanguageRef.current = language;
@@ -174,14 +178,47 @@ export const PanoramaViewer = forwardRef<
     onErrorRef.current = onError;
   }, [onError]);
 
+  const refreshLocalizedHotspotsRef = useRef<(viewer: Viewer) => void>(
+    () => undefined,
+  );
+  refreshLocalizedHotspotsRef.current = (viewer) => {
+    const desiredScene = desiredSceneRef.current;
+    const desiredLanguage = desiredLanguageRef.current;
+    if (
+      !viewer.isLoaded() ||
+      viewer.getScene() !== desiredScene.id ||
+      (activeViewerSceneRef.current === desiredScene &&
+        activeViewerLanguageRef.current === desiredLanguage)
+    ) {
+      return;
+    }
+
+    for (const hotspot of activeViewerSceneRef.current.hotspots) {
+      viewer.removeHotSpot(hotspot.id, desiredScene.id);
+    }
+    for (const hotspot of desiredScene.hotspots) {
+      if (!hotspot.isVisible) continue;
+      viewer.addHotSpot(
+        createHotspotConfig(hotspot, desiredLanguage, (selected) =>
+          onHotspotClickRef.current?.(selected),
+        ),
+        desiredScene.id,
+      );
+    }
+    activeViewerSceneRef.current = desiredScene;
+    activeViewerLanguageRef.current = desiredLanguage;
+  };
+
   const switchToDesiredSceneRef = useRef<(viewer: Viewer) => boolean>(
     () => false,
   );
   switchToDesiredSceneRef.current = (viewer) => {
     const desiredScene = desiredSceneRef.current;
     const desiredLanguage = desiredLanguageRef.current;
-    const desiredKey = desiredScene.id + ":" + desiredLanguage;
-    if (activeViewerKeyRef.current === desiredKey || !viewer.isLoaded()) {
+    if (
+      activeViewerSceneIdRef.current === desiredScene.id ||
+      !viewer.isLoaded()
+    ) {
       return false;
     }
 
@@ -197,7 +234,8 @@ export const PanoramaViewer = forwardRef<
       (hotspot) => onHotspotClickRef.current?.(hotspot),
     );
     viewer.addScene(desiredScene.id, config);
-    activeViewerKeyRef.current = desiredKey;
+    activeViewerSceneIdRef.current = desiredScene.id;
+    activeViewerLanguageRef.current = desiredLanguage;
     activeViewerSceneRef.current = desiredScene;
     viewer.loadScene(
       desiredScene.id,
@@ -211,7 +249,7 @@ export const PanoramaViewer = forwardRef<
   useEffect(() => {
     let cancelled = false;
     let localViewer: Viewer | null = null;
-    activeViewerKeyRef.current = null;
+    activeViewerSceneIdRef.current = null;
     setLoading(true);
     setError(null);
 
@@ -256,7 +294,8 @@ export const PanoramaViewer = forwardRef<
           scenes: { [initialScene.id]: config },
         });
         viewerRef.current = localViewer;
-        activeViewerKeyRef.current = initialScene.id + ":" + initialLanguage;
+        activeViewerSceneIdRef.current = initialScene.id;
+        activeViewerLanguageRef.current = initialLanguage;
         activeViewerSceneRef.current = initialScene;
         onReadyRef.current?.();
 
@@ -265,6 +304,7 @@ export const PanoramaViewer = forwardRef<
           if (switchToDesiredSceneRef.current(localViewer)) {
             return;
           }
+          refreshLocalizedHotspotsRef.current(localViewer);
           setLoading(false);
           onLoadRef.current?.();
           onSceneChangeRef.current?.(activeViewerSceneRef.current);
@@ -310,14 +350,16 @@ export const PanoramaViewer = forwardRef<
         localViewer = null;
       }
       viewerRef.current = null;
-      activeViewerKeyRef.current = null;
+      activeViewerSceneIdRef.current = null;
     };
   }, [retryKey]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
     if (viewer) {
-      switchToDesiredSceneRef.current(viewer);
+      if (!switchToDesiredSceneRef.current(viewer)) {
+        refreshLocalizedHotspotsRef.current(viewer);
+      }
     }
   }, [language, scene]);
 

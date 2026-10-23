@@ -1,137 +1,187 @@
 import "dotenv/config";
 import { hash } from "bcryptjs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { Prisma } from "../generated/prisma/client";
 import { demoTour } from "../lib/demo-data";
 import { prisma } from "../lib/database/client";
 
-async function seed() {
-  const adminEmail = process.env.ADMIN_SEED_EMAIL?.trim().toLowerCase();
-  const adminPassword = process.env.ADMIN_SEED_PASSWORD;
+interface SeedEnvironment {
+  ADMIN_SEED_EMAIL?: string;
+  ADMIN_SEED_PASSWORD?: string;
+}
+
+export async function seed(
+  environment: SeedEnvironment = {
+    ADMIN_SEED_EMAIL: process.env.ADMIN_SEED_EMAIL,
+    ADMIN_SEED_PASSWORD: process.env.ADMIN_SEED_PASSWORD,
+  },
+) {
+  const adminEmail = environment.ADMIN_SEED_EMAIL?.trim().toLowerCase();
+  const adminPassword = environment.ADMIN_SEED_PASSWORD;
   if (!adminEmail || !adminPassword || adminPassword.length < 10) {
     throw new Error(
       "Set ADMIN_SEED_EMAIL and an ADMIN_SEED_PASSWORD of at least 10 characters before seeding.",
     );
   }
 
-  // 1. Seed Admin User (Create if not existing)
-  const existingUser = await prisma.user.findUnique({ where: { email: adminEmail } });
-  if (!existingUser) {
-    await prisma.user.create({
-      data: {
-        email: adminEmail,
-        passwordHash: await hash(adminPassword, 12),
-        role: "ADMIN",
-      },
-    });
-  }
+  // 1. Seed Admin User (update the password on every deliberate seed run)
+  const passwordHash = await hash(adminPassword, 12);
+  await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: { passwordHash, role: "ADMIN" },
+    create: {
+      email: adminEmail,
+      passwordHash,
+      role: "ADMIN",
+    },
+  });
 
   // 2. Seed Categories (Create if not existing - NEVER overwrite user edits)
   for (const category of demoTour.categories) {
-    const existing = await prisma.category.findUnique({ where: { id: category.id } });
-    if (!existing) {
-      await prisma.category.create({ data: category });
-    }
+    await prisma.category.upsert({
+      where: { id: category.id },
+      update: {},
+      create: category,
+    });
   }
 
-  // 3. Seed Tour (Create if not existing - NEVER overwrite user edits)
-  const existingTour = await prisma.tour.findUnique({ where: { id: demoTour.id } });
-  if (!existingTour) {
-    await prisma.tour.create({
-      data: {
-        id: demoTour.id,
-        slug: demoTour.slug,
-        titleVi: demoTour.titleVi,
-        titleEn: demoTour.titleEn,
-        descriptionVi: demoTour.descriptionVi,
-        descriptionEn: demoTour.descriptionEn,
-        coverImageUrl: demoTour.coverImageUrl,
-        welcomeImageUrl: demoTour.welcomeImageUrl,
-        isPublished: true,
+  // 3. Seed Tour without its default scene until all scene foreign keys exist.
+  await prisma.tour.upsert({
+    where: { id: demoTour.id },
+    update: {},
+    create: {
+      id: demoTour.id,
+      slug: demoTour.slug,
+      titleVi: demoTour.titleVi,
+      titleEn: demoTour.titleEn,
+      descriptionVi: demoTour.descriptionVi,
+      descriptionEn: demoTour.descriptionEn,
+      coverImageUrl: demoTour.coverImageUrl,
+      welcomeImageUrl: demoTour.welcomeImageUrl,
+      isPublished: demoTour.isPublished,
+    },
+  });
+
+  // 4. Seed every scene before records which may reference another scene.
+  for (const scene of demoTour.scenes) {
+    const {
+      hotspots: _hotspots,
+      media: _media,
+      cubemapUrls: _cubemapUrls,
+      northOffset: _northOffset,
+      transcriptVi: _transcriptVi,
+      transcriptEn: _transcriptEn,
+      multiresConfig,
+      ...sceneData
+    } = scene;
+    void _media;
+    void _hotspots;
+    void _cubemapUrls;
+    void _northOffset;
+    void _transcriptVi;
+    void _transcriptEn;
+
+    await prisma.scene.upsert({
+      where: { id: scene.id },
+      update: {},
+      create: {
+        ...sceneData,
+        multiresConfig: multiresConfig
+          ? (multiresConfig as Prisma.InputJsonValue)
+          : Prisma.DbNull,
       },
     });
   }
 
-  // 4. Seed Scenes (Create if not existing - NEVER overwrite user edits)
+  // 5. Seed scene children only after all hotspot target scenes exist.
   for (const scene of demoTour.scenes) {
-    const existingScene = await prisma.scene.findUnique({ where: { id: scene.id } });
-    if (!existingScene) {
-      const {
-        hotspots: _hotspots,
-        media: _media,
-        cubemapUrls: _cubemapUrls,
-        northOffset: _northOffset,
-        transcriptVi: _transcriptVi,
-        transcriptEn: _transcriptEn,
-        multiresConfig,
-        ...sceneData
-      } = scene;
-      void _media;
-      void _hotspots;
-      void _cubemapUrls;
-      void _northOffset;
-      void _transcriptVi;
-      void _transcriptEn;
-      await prisma.scene.create({
-        data: {
-          ...sceneData,
-          multiresConfig: multiresConfig
-            ? (multiresConfig as Prisma.InputJsonValue)
-            : Prisma.DbNull,
-        },
+    for (const hotspot of scene.hotspots) {
+      await prisma.hotspot.upsert({
+        where: { id: hotspot.id },
+        update: {},
+        create: hotspot,
+      });
+    }
+
+    for (const media of scene.media) {
+      await prisma.media.upsert({
+        where: { id: media.id },
+        update: {},
+        create: media,
       });
     }
   }
 
-  // 5. Seed Floor Plans (Create if not existing - NEVER overwrite user edits)
-  if (demoTour.floorPlans) {
-    for (const plan of demoTour.floorPlans) {
-      const existingPlan = await prisma.floorPlan.findUnique({ where: { id: plan.id } });
-      if (!existingPlan) {
-        await prisma.floorPlan.create({
-          data: {
-            id: plan.id,
-            tourId: plan.tourId,
-            titleVi: plan.titleVi,
-            titleEn: plan.titleEn,
-            imageUrl: plan.imageUrl,
-            isDefault: plan.isDefault,
-            sortOrder: plan.sortOrder,
-          },
-        });
-      }
+  // 6. Seed Floor Plans (Create if not existing - NEVER overwrite user edits)
+  for (const plan of demoTour.floorPlans ?? []) {
+    const create = {
+      id: plan.id,
+      tourId: plan.tourId,
+      titleVi: plan.titleVi,
+      titleEn: plan.titleEn,
+      imageUrl: plan.imageUrl,
+      isDefault: plan.isDefault,
+      sortOrder: plan.sortOrder,
+    };
 
-      for (const marker of plan.markers) {
-        const existingMarker = await prisma.floorPlanMarker.findUnique({ where: { id: marker.id } });
-        if (!existingMarker) {
-          await prisma.floorPlanMarker.create({
-            data: {
-              id: marker.id,
-              floorPlanId: plan.id,
-              sceneId: marker.sceneId,
-              x: marker.x,
-              y: marker.y,
-              labelVi: marker.labelVi,
-              labelEn: marker.labelEn,
-              icon: marker.icon,
-              colorTheme: marker.colorTheme,
-            },
-          });
-        }
-      }
+    if (plan.isDefault) {
+      await prisma.$transaction(async (transaction) => {
+        const existingDefault = await transaction.floorPlan.findFirst({
+          where: {
+            tourId: plan.tourId,
+            isDefault: true,
+            id: { not: plan.id },
+          },
+          select: { id: true },
+        });
+
+        await transaction.floorPlan.upsert({
+          where: { id: plan.id },
+          update: {},
+          create: { ...create, isDefault: existingDefault === null },
+        });
+      });
+    } else {
+      await prisma.floorPlan.upsert({
+        where: { id: plan.id },
+        update: {},
+        create,
+      });
+    }
+
+    for (const marker of plan.markers) {
+      await prisma.floorPlanMarker.upsert({
+        where: { id: marker.id },
+        update: {},
+        create: marker,
+      });
     }
   }
 
+  // 7. Assign the bundled default only after its scene has been seeded.
+  await prisma.tour.update({
+    where: { id: demoTour.id },
+    data: { defaultSceneId: demoTour.defaultSceneId },
+  });
+
   console.info(
-    `Non-destructive seed complete. All existing user data preserved.`,
+    "Idempotent seed complete. Existing demo content fields were preserved.",
   );
 }
 
-seed()
-  .catch((error: unknown) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+const isDirectInvocation =
+  process.argv[1] !== undefined &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isDirectInvocation) {
+  seed()
+    .catch((error: unknown) => {
+      console.error(error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

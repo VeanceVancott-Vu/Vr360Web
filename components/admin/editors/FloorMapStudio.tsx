@@ -15,6 +15,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
+import { adminRequest } from "@/lib/api/admin-client";
 import type { FloorPlanDto, FloorPlanMarkerDto, SceneDto } from "@/lib/types";
 
 const iconMap = {
@@ -127,7 +128,7 @@ export function FloorMapStudio({
     };
 
     try {
-      const response = await fetch(
+      await adminRequest<unknown>(
         `/api/admin/floor-plans/${floorPlan.id}/markers`,
         {
           method: selectedMarkerId ? "PATCH" : "POST",
@@ -139,16 +140,15 @@ export function FloorMapStudio({
           ),
         },
       );
-
-      if (response.ok) {
-        setMessage("Marker saved successfully.");
-        setAimedPoint(null);
-        router.refresh();
-      } else {
-        setMessage("Failed to save marker.");
-      }
-    } catch {
-      setMessage("An error occurred while saving.");
+      setMessage("Marker saved successfully.");
+      setAimedPoint(null);
+      router.refresh();
+    } catch (error: unknown) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "An error occurred while saving.",
+      );
     } finally {
       setSaving(false);
     }
@@ -159,17 +159,22 @@ export function FloorMapStudio({
     if (!window.confirm("Are you sure you want to delete this marker?")) return;
 
     setSaving(true);
+    setMessage(null);
     try {
-      const response = await fetch(
+      await adminRequest<unknown>(
         `/api/admin/floor-plans/${floorPlan.id}/markers?markerId=${selectedMarkerId}`,
         { method: "DELETE" },
       );
-      if (response.ok) {
-        setMessage("Marker deleted.");
-        setSelectedMarkerId(null);
-        setAimedPoint(null);
-        router.refresh();
-      }
+      setMessage("Marker deleted.");
+      setSelectedMarkerId(null);
+      setAimedPoint(null);
+      router.refresh();
+    } catch (error: unknown) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "An error occurred while deleting.",
+      );
     } finally {
       setSaving(false);
     }
@@ -204,8 +209,20 @@ export function FloorMapStudio({
               style={{ color: "#f43f5e", borderColor: "rgba(244, 63, 94, 0.4)" }}
               onClick={async () => {
                 if (!window.confirm(`Are you sure you want to delete "${floorPlan.titleVi}"?`)) return;
-                const res = await fetch(`/api/admin/floor-plans/${floorPlan.id}`, { method: "DELETE" });
-                if (res.ok) router.push("/admin/maps");
+                setMessage(null);
+                try {
+                  await adminRequest<unknown>(
+                    `/api/admin/floor-plans/${floorPlan.id}`,
+                    { method: "DELETE" },
+                  );
+                  router.push("/admin/maps");
+                } catch (error: unknown) {
+                  setMessage(
+                    error instanceof Error
+                      ? error.message
+                      : "An error occurred while deleting.",
+                  );
+                }
               }}
             >
               <Trash2 size={15} aria-hidden="true" /> Delete Map

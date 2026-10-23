@@ -4,6 +4,7 @@ import { Plus, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { adminRequest } from "@/lib/api/admin-client";
 import type { TourDto } from "@/lib/types";
 
 export function AdminFloorPlanForm({ tours }: { tours: Partial<TourDto>[] }) {
@@ -29,24 +30,17 @@ export function AdminFloorPlanForm({ tours }: { tours: Partial<TourDto>[] }) {
     formData.append("file", file);
 
     try {
-      const response = await fetch("/api/admin/upload", {
+      const upload = await adminRequest<{ url: string }>("/api/admin/upload", {
         method: "POST",
         body: formData,
       });
-
-      const resData = (await response.json()) as {
-        success: boolean;
-        data?: { url: string };
-        error?: { message: string };
-      };
-
-      if (resData.success && resData.data?.url) {
-        setImageUrl(resData.data.url);
-      } else {
-        setErrorMsg(resData.error?.message || "File upload failed.");
-      }
-    } catch {
-      setErrorMsg("An error occurred during file upload.");
+      setImageUrl(upload.url);
+    } catch (error: unknown) {
+      setErrorMsg(
+        error instanceof Error
+          ? error.message
+          : "An error occurred during file upload.",
+      );
     } finally {
       setUploading(false);
     }
@@ -58,7 +52,7 @@ export function AdminFloorPlanForm({ tours }: { tours: Partial<TourDto>[] }) {
     setErrorMsg(null);
 
     try {
-      const response = await fetch("/api/admin/floor-plans", {
+      await adminRequest<unknown>("/api/admin/floor-plans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -70,16 +64,13 @@ export function AdminFloorPlanForm({ tours }: { tours: Partial<TourDto>[] }) {
           sortOrder: 1,
         }),
       });
-
-      if (response.ok) {
-        setTitleVi("");
-        setTitleEn("");
-        router.refresh();
-      } else {
-        setErrorMsg("Failed to create floor plan.");
-      }
-    } catch {
-      setErrorMsg("An error occurred.");
+      setTitleVi("");
+      setTitleEn("");
+      router.refresh();
+    } catch (error: unknown) {
+      setErrorMsg(
+        error instanceof Error ? error.message : "An error occurred.",
+      );
     } finally {
       setSubmitting(false);
     }

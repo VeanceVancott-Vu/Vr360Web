@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { adminRequest } from "@/lib/api/admin-client";
+
 interface ResourceRow {
   id: string;
   title: string;
@@ -32,19 +34,16 @@ export function ResourceTable({
     if (!confirmed) return;
     setBusyId(row.id);
     setMessage(null);
-    const response = await fetch(`/api/admin/${resource}/${row.id}`, {
-      method: "DELETE",
-    });
-    const result = (await response.json()) as {
-      success: boolean;
-      error?: { message?: string };
-    };
-    setBusyId(null);
-    if (!response.ok || !result.success) {
-      setMessage(result.error?.message ?? "Delete failed.");
-      return;
+    try {
+      await adminRequest<unknown>(`/api/admin/${resource}/${row.id}`, {
+        method: "DELETE",
+      });
+      router.refresh();
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : "Delete failed.");
+    } finally {
+      setBusyId(null);
     }
-    router.refresh();
   }
 
   return (

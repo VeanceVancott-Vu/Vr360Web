@@ -80,6 +80,30 @@ function uploadRequest(bytes: number[], name: string, type: string) {
   });
 }
 
+function pngBytes(width = 1200, height = 800) {
+  const bytes = Array<number>(33).fill(0);
+  bytes.splice(0, 8, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a);
+  bytes.splice(8, 4, 0x00, 0x00, 0x00, 0x0d);
+  bytes.splice(12, 4, 0x49, 0x48, 0x44, 0x52);
+  bytes.splice(
+    16,
+    4,
+    (width >>> 24) & 0xff,
+    (width >>> 16) & 0xff,
+    (width >>> 8) & 0xff,
+    width & 0xff,
+  );
+  bytes.splice(
+    20,
+    4,
+    (height >>> 24) & 0xff,
+    (height >>> 16) & 0xff,
+    (height >>> 8) & 0xff,
+    height & 0xff,
+  );
+  return bytes;
+}
+
 describe("protected floor-plan mutations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -328,10 +352,43 @@ describe("floor-plan upload validation", () => {
     expect(routeMocks.storagePut).not.toHaveBeenCalled();
   });
 
-  it("sends a verified PNG to storage under a generated safe filename", async () => {
-    const png = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00];
+  it("rejects images with incomplete metadata", async () => {
     const response = await uploadFloorPlan(
-      uploadRequest(png, "My Floor Plan.png", "image/png") as never,
+      uploadRequest(
+        [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+        "plan.png",
+        "image/png",
+      ) as never,
+    );
+
+    expect(response.status).toBe(422);
+    await expect(response.json()).resolves.toMatchObject({
+      success: false,
+      error: { code: "INVALID_FILE_CONTENT" },
+    });
+    expect(routeMocks.storagePut).not.toHaveBeenCalled();
+  });
+
+  it("rejects images with unsafe decompression dimensions", async () => {
+    const response = await uploadFloorPlan(
+      uploadRequest(
+        pngBytes(20_000, 20_000),
+        "huge-plan.png",
+        "image/png",
+      ) as never,
+    );
+
+    expect(response.status).toBe(422);
+    await expect(response.json()).resolves.toMatchObject({
+      success: false,
+      error: { code: "IMAGE_DIMENSIONS_TOO_LARGE" },
+    });
+    expect(routeMocks.storagePut).not.toHaveBeenCalled();
+  });
+
+  it("sends a verified PNG to storage under a generated safe filename", async () => {
+    const response = await uploadFloorPlan(
+      uploadRequest(pngBytes(), "My Floor Plan.png", "image/png") as never,
     );
     const body = await response.json();
 
@@ -351,9 +408,8 @@ describe("floor-plan upload validation", () => {
       throw new MediaStorageConfigurationError("Missing storage settings.");
     });
 
-    const png = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00];
     const response = await uploadFloorPlan(
-      uploadRequest(png, "plan.png", "image/png") as never,
+      uploadRequest(pngBytes(), "plan.png", "image/png") as never,
     );
 
     expect(response.status).toBe(503);

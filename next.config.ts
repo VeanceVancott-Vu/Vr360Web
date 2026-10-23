@@ -1,26 +1,20 @@
 import type { NextConfig } from "next";
 
-function configuredMediaOrigin() {
-  const publicBaseUrl = process.env.S3_PUBLIC_BASE_URL;
-  if (!publicBaseUrl) return "";
+import {
+  configuredMediaOrigins,
+  mediaRemotePattern,
+} from "./lib/media/origins";
 
-  try {
-    const url = new URL(publicBaseUrl);
-    if (url.protocol !== "http:" && url.protocol !== "https:") return "";
-    return " " + url.origin;
-  } catch {
-    return "";
-  }
-}
-
-const mediaOrigin = configuredMediaOrigin();
+const mediaOrigins = configuredMediaOrigins();
+const mediaSources =
+  mediaOrigins.length > 0 ? " " + mediaOrigins.join(" ") : "";
 const contentSecurityPolicy = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' blob: data: https://*.tile.openstreetmap.org" + mediaOrigin,
-  "media-src 'self' blob: data:" + mediaOrigin,
-  "connect-src 'self'" + mediaOrigin,
+  "img-src 'self' blob: data: https://*.tile.openstreetmap.org" + mediaSources,
+  "media-src 'self' blob: data:" + mediaSources,
+  "connect-src 'self'" + mediaSources,
   "font-src 'self' data:",
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",
@@ -31,6 +25,9 @@ const contentSecurityPolicy = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  images: {
+    remotePatterns: mediaOrigins.map(mediaRemotePattern),
+  },
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
@@ -69,6 +66,7 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  allowedDevOrigins: ["26.50.166.44"],
 };
 
 export default nextConfig;

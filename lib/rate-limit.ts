@@ -1,5 +1,6 @@
 import { Redis } from "@upstash/redis";
 import { createHash } from "node:crypto";
+import { isIP } from "node:net";
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -8,6 +9,11 @@ export interface RateLimitResult {
 
 export interface RateLimitStore {
   consume(
+    key: string,
+    limit: number,
+    windowMs: number,
+  ): Promise<RateLimitResult>;
+  inspect(
     key: string,
     limit: number,
     windowMs: number,
@@ -90,6 +96,31 @@ export class MemoryRateLimitStore implements RateLimitStore {
     return { allowed: true, retryAfterSeconds: 0 };
   }
 
+  async inspect(
+    key: string,
+    limit: number,
+    windowMs: number,
+  ): Promise<RateLimitResult> {
+    validateArguments(key, limit, windowMs);
+    const now = this.now();
+    const bucketKey = scopedKey(key, limit, windowMs);
+    const existing = this.buckets.get(bucketKey);
+
+    if (!existing || existing.resetAt <= now) {
+      if (existing) this.buckets.delete(bucketKey);
+      return { allowed: true, retryAfterSeconds: 0 };
+    }
+    return existing.count >= limit
+      ? {
+          allowed: false,
+          retryAfterSeconds: Math.max(
+            1,
+            Math.ceil((existing.resetAt - now) / 1000),
+          ),
+        }
+      : { allowed: true, retryAfterSeconds: 0 };
+  }
+
   private removeExpiredBuckets(now: number) {
     this.operations += 1;
     if (this.operations % 500 !== 0) return;
@@ -110,6 +141,14 @@ const fixedWindowScript = [
   "  ttl = tonumber(ARGV[1])",
   "end",
   "return {count, ttl}",
+].join("\n");
+
+const inspectFixedWindowScript = [
+  "local count = redis.call('GET', KEYS[1])",
+  "if not count then return {0, 0} end",
+  "local ttl = redis.call('PTTL', KEYS[1])",
+  "if ttl <= 0 then return {0, 0} end",
+  "return {tonumber(count), ttl}",
 ].join("\n");
 
 type RedisEvalClient = Pick<Redis, "eval">;
@@ -167,6 +206,49 @@ export class UpstashRateLimitStore implements RateLimitStore {
       throw new RateLimitUnavailableError();
     }
   }
+
+  async inspect(
+    key: string,
+    limit: number,
+    windowMs: number,
+  ): Promise<RateLimitResult> {
+    validateArguments(key, limit, windowMs);
+    const digest = createHash("sha256")
+      .update(scopedKey(key, limit, windowMs))
+      .digest("hex");
+    const redisKey = this.prefix + ":" + digest;
+
+    try {
+      const result = await this.client.eval<[], unknown>(
+        inspectFixedWindowScript,
+        [redisKey],
+        [],
+      );
+      if (!Array.isArray(result) || result.length < 2) {
+        throw new RateLimitUnavailableError();
+      }
+      const count = Number(result[0]);
+      const ttlMs = Number(result[1]);
+      if (
+        !Number.isSafeInteger(count) ||
+        count < 0 ||
+        !Number.isFinite(ttlMs) ||
+        ttlMs < 0 ||
+        (count > 0 && ttlMs === 0)
+      ) {
+        throw new RateLimitUnavailableError();
+      }
+      return count >= limit
+        ? {
+            allowed: false,
+            retryAfterSeconds: Math.max(1, Math.ceil(ttlMs / 1000)),
+          }
+        : { allowed: true, retryAfterSeconds: 0 };
+    } catch (error) {
+      if (error instanceof RateLimitUnavailableError) throw error;
+      throw new RateLimitUnavailableError();
+    }
+  }
 }
 
 type RateLimitEnvironment = Record<string, string | undefined>;
@@ -210,6 +292,7 @@ function validatedUpstashUrl(value: string) {
 export function createRateLimitStore(
   environment: RateLimitEnvironment = process.env,
 ): RateLimitStore {
+  trustsProxyHeaders(environment);
   const configuredDriver = environment.RATE_LIMIT_DRIVER?.trim();
   const driver =
     configuredDriver ||
@@ -260,12 +343,35 @@ export async function checkRateLimit(
   return getRateLimitStore().consume(key, limit, windowMs);
 }
 
-export function requestAddress(request: Request): string {
+export async function inspectRateLimit(
+  key: string,
+  limit: number,
+  windowMs: number,
+): Promise<RateLimitResult> {
+  return getRateLimitStore().inspect(key, limit, windowMs);
+}
+
+function trustsProxyHeaders(environment: RateLimitEnvironment): boolean {
+  const configured = environment.TRUST_PROXY_HEADERS?.trim().toLowerCase();
+  if (!configured || configured === "false") return false;
+  if (configured === "true") return true;
+  throw new RateLimitConfigurationError(
+    "TRUST_PROXY_HEADERS must be true or false.",
+  );
+}
+
+export function requestAddress(
+  request: Request,
+  environment: RateLimitEnvironment = process.env,
+): string {
+  if (!trustsProxyHeaders(environment)) return "local";
+
   const forwardedAddress = request.headers
     .get("x-forwarded-for")
     ?.split(",")[0]
     ?.trim();
-  const address =
-    forwardedAddress || request.headers.get("x-real-ip")?.trim() || "local";
-  return address.slice(0, 256) || "local";
+  const realAddress = request.headers.get("x-real-ip")?.trim();
+  if (forwardedAddress && isIP(forwardedAddress)) return forwardedAddress;
+  if (realAddress && isIP(realAddress)) return realAddress;
+  return "local";
 }

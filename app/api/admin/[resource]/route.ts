@@ -1,11 +1,10 @@
-import { ZodError } from "zod";
-
 import {
   adminResourceSchema,
   createAdminResource,
   listAdminResources,
 } from "@/lib/admin/crud";
-import { apiError, apiSuccess, zodFields } from "@/lib/api/response";
+import { adminMutationErrorResponse } from "@/lib/admin/errors";
+import { apiError, apiSuccess } from "@/lib/api/response";
 import { getAdminSession, isSameOrigin } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
@@ -57,26 +56,8 @@ export async function POST(
     const created = await createAdminResource(parsedResource.data, body);
     return apiSuccess(created, { status: 201 });
   } catch (error: unknown) {
-    if (error instanceof ZodError) {
-      return apiError(
-        "VALIDATION_ERROR",
-        "The record contains invalid fields.",
-        422,
-        zodFields(error),
-      );
-    }
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      error.code === "P2002"
-    ) {
-      return apiError(
-        "DUPLICATE_RECORD",
-        "A unique value already exists.",
-        409,
-      );
-    }
+    const response = adminMutationErrorResponse(error);
+    if (response) return response;
     console.error("Administrator create failed", error);
     return apiError("INTERNAL_ERROR", "Unable to create the record.", 500);
   }

@@ -244,7 +244,9 @@ Floor-plan uploads use `lib/media/storage.ts`. Development defaults to the
 local `public/uploads` adapter so existing `/uploads/floor-plans/...` URLs
 continue to work. Production refuses new uploads until an S3-compatible durable
 store is configured; this prevents silently writing new files to an ephemeral
-application filesystem.
+application filesystem. PNG, JPEG, and WebP uploads are checked for matching
+signatures, readable dimensions, a 16,384-pixel per-side limit, and a
+40-megapixel total limit before storage.
 
 Set `MEDIA_STORAGE_DRIVER=s3`, `S3_REGION`, `S3_BUCKET`, and
 `S3_PUBLIC_BASE_URL`. `S3_ENDPOINT` supports providers such as Cloudflare R2
@@ -252,6 +254,11 @@ or MinIO, and `S3_FORCE_PATH_STYLE=true` supports providers that require
 path-style requests. Set `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`
 together, or omit both to use the AWS SDK credential chain. `S3_PREFIX`
 defaults to `uploads`.
+
+Tour media URLs may use relative application paths, the
+`S3_PUBLIC_BASE_URL` origin, or an origin explicitly listed in the
+comma-separated `MEDIA_ALLOWED_ORIGINS` setting. The same origin list feeds
+server validation, Content Security Policy, and Next Image configuration.
 
 The bucket or CDN base URL must permit public reads for saved floor-plan URLs.
 Credentials stay server-side. Existing local files and database URLs are not
@@ -281,6 +288,11 @@ shared Upstash Redis adapter so login and analytics limits apply across every
 application instance. Set `RATE_LIMIT_DRIVER=upstash`,
 `UPSTASH_REDIS_REST_URL`, and `UPSTASH_REDIS_REST_TOKEN`.
 `RATE_LIMIT_PREFIX` is optional and defaults to `vr360:rate-limit`.
+
+Proxy address headers are ignored by default. Set `TRUST_PROXY_HEADERS=true`
+only when the application is behind a trusted reverse proxy that overwrites
+client-supplied `X-Forwarded-For` and `X-Real-IP` values. Direct deployments
+must leave it false so clients cannot choose their own rate-limit identity.
 
 The adapter performs one atomic server-side operation, gives every counter an
 expiry, and stores hashed request identifiers rather than raw addresses. If the
@@ -377,7 +389,8 @@ this lane against a disposable MySQL 8.4 service.
 - Analytics requires explicit opt-in, honors supported browser privacy signals,
   and stores daily HMAC digests instead of raw session or network identifiers.
 - Administrator mutations reject cross-origin `Origin` values.
-- Media URLs allow local paths or HTTP(S); external hotspots allow HTTP(S) only.
+- Media URLs allow local paths and configured HTTP(S) origins; external
+  hotspots allow HTTP(S) destinations independently.
 - Security headers include CSP, frame denial, MIME sniffing protection,
   referrer policy, and a conservative permissions policy.
 - Run `npm audit` on every lockfile update. Review advisories before applying
@@ -428,6 +441,11 @@ docker compose up -d db
 docker compose run --rm app npm run db:migrate:deploy
 docker compose up -d app
 ```
+
+Compose forwards `NEXT_PUBLIC_SITE_URL`, `S3_PUBLIC_BASE_URL`, and
+`MEDIA_ALLOWED_ORIGINS` from `.env` as non-secret build arguments so the
+generated CSP and Next Image allow-list match runtime URL validation. Rebuild
+the app image whenever any of these origin settings changes.
 
 Routine deployments do not run `db:seed`; use it only for deliberate initial
 setup or administrator rotation. The Docker image excludes local `.env`

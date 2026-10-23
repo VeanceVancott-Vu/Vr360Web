@@ -5,6 +5,7 @@ import {
   hashAnalyticsSessionToken,
 } from "@/lib/analytics/privacy.server";
 import { prisma } from "@/lib/database/client";
+import { demoTour } from "@/lib/demo-data";
 import { getPublicDataMode } from "@/lib/env.server";
 import {
   checkRateLimit,
@@ -66,7 +67,25 @@ export async function POST(request: Request) {
   }
   try {
     const { sessionToken, ...event } = parsed.data;
-    if (getPublicDataMode() === "database") {
+    const dataMode = getPublicDataMode();
+    if (event.sceneId) {
+      const validScene =
+        dataMode === "database"
+          ? await prisma.scene.findFirst({
+              where: { id: event.sceneId, tourId: event.tourId },
+              select: { id: true },
+            })
+          : event.tourId === demoTour.id &&
+            demoTour.scenes.some((scene) => scene.id === event.sceneId);
+      if (!validScene) {
+        return apiError(
+          "INVALID_RELATION",
+          "The analytics scene does not belong to the supplied tour.",
+          422,
+        );
+      }
+    }
+    if (dataMode === "database") {
       await prisma.tourViewEvent.create({
         data: {
           ...event,

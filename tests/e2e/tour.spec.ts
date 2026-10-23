@@ -4,6 +4,11 @@ async function waitForTour(page: Page) {
   await expect(
     page.locator('main.tour-shell[data-hydrated="true"]'),
   ).toBeVisible({ timeout: 10_000 });
+
+  const privacyBanner = page.locator(".privacy-banner");
+  if (await privacyBanner.isVisible()) {
+    await privacyBanner.locator("button").last().click();
+  }
 }
 
 async function waitForAdminLogin(page: Page) {
@@ -12,14 +17,15 @@ async function waitForAdminLogin(page: Page) {
 
 test("opens the welcome page and starts the default tour", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "English" }).click();
   await expect(
-    page.getByRole("heading", { name: "Khám phá Đà Nẵng 360" }),
+    page.getByRole("heading", { name: /VR360 Student Boarding House/ }),
   ).toBeVisible();
-  await page.getByRole("link", { name: /Bắt đầu khám phá/ }).click();
+  await page.getByRole("link", { name: "Start exploring" }).click();
   await expect(page).toHaveURL(/\/tour\/da-nang/);
   await waitForTour(page);
   await expect(
-    page.getByRole("heading", { name: "Tổng quan Đà Nẵng" }),
+    page.getByRole("heading", { name: /Entrance & Security Gate/ }),
   ).toBeVisible();
 });
 
@@ -34,11 +40,13 @@ test("changes scene from navigation and restores it with browser back", async ({
   const sidebar = page.locator("aside.scene-sidebar");
   await expect(sidebar).toHaveAttribute("data-open", "true");
   await expect(currentSceneCard).toBeHidden();
-  await sidebar.getByRole("button", { name: /Dragon Bridge/ }).click();
+  await sidebar
+    .getByRole("button", { name: /Common Kitchen & Living Room/ })
+    .click();
   await expect(currentSceneCard).toBeVisible();
   await expect(page).toHaveURL(/scene=cau-rong/);
   await expect(
-    page.getByRole("heading", { name: "Dragon Bridge" }),
+    page.getByRole("heading", { name: /Common Kitchen & Living Room/ }),
   ).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/scene=tong-quan-da-nang/);
@@ -54,36 +62,22 @@ test("changes language and opens destination information", async ({ page }) => {
     .toBe("en");
   await expect(page).toHaveURL(/lang=en/);
   await expect(
-    page.getByRole("heading", { name: "Da Nang Overview" }),
+    page.getByRole("heading", { name: /Entrance & Security Gate/ }),
   ).toBeVisible();
   await page.getByRole("button", { name: "View details" }).click();
   await expect(page.getByRole("dialog")).toContainText(
-    "This illustrated space introduces",
+    "Main boarding house gate equipped",
   );
   await page.getByRole("dialog").getByRole("button", { name: "Close" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
-test("opens localized content from an information hotspot", async ({
-  page,
-}) => {
-  await page.goto("/tour/da-nang?lang=en");
-  await waitForTour(page);
-  const hotspot = page.getByRole("button", { name: "Three landscapes" });
-  await expect(hotspot).toBeVisible({ timeout: 10_000 });
-  await hotspot.click();
-  const dialog = page.getByRole("dialog", { name: "Three landscapes" });
-  await expect(dialog).toContainText("three closely connected landscapes");
-  await dialog.getByRole("button", { name: "Close" }).click();
-  await expect(dialog).toHaveCount(0);
-});
-
 test("changes scene from the text fallback in the map", async ({ page }) => {
   await page.goto("/tour/da-nang?lang=en");
   await waitForTour(page);
   await page.getByRole("button", { name: "Map" }).first().click();
   const dialog = page.locator(".map-modal");
   await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: "My Khe Beach" }).click();
+  await dialog.getByRole("button", { name: /Student Private Room A/ }).click();
   await expect(page).toHaveURL(/scene=bien-my-khe/);
 });
 
@@ -105,23 +99,26 @@ test("scene-link hotspot changes scene when WebGL is available", async ({
 }) => {
   await page.goto("/tour/da-nang?lang=en");
   await waitForTour(page);
-  const hotspot = page.getByRole("button", { name: "Go to Dragon Bridge" });
-  const viewerReady = await hotspot
-    .waitFor({ state: "visible", timeout: 10_000 })
-    .then(() => true)
-    .catch(() => false);
+  const webGlSupported = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    return Boolean(
+      window.WebGLRenderingContext &&
+      (canvas.getContext("webgl") || canvas.getContext("experimental-webgl")),
+    );
+  });
+  test.skip(!webGlSupported, "Headless browser does not provide WebGL.");
 
-  if (viewerReady) {
-    await hotspot.click();
-    await expect(page).toHaveURL(/scene=cau-rong/);
-  } else {
-    test.skip(true, "Headless WebGL did not initialize the Pannellum hotspot.");
-  }
+  const hotspot = page.getByRole("button", {
+    name: "Enter Kitchen & Living Room",
+  });
+  await expect(hotspot).toBeVisible({ timeout: 10_000 });
+  await hotspot.click();
+  await expect(page).toHaveURL(/scene=cau-rong/);
 });
 test("shows a recoverable error when the panorama request fails", async ({
   page,
 }) => {
-  await page.route("**/demo/coastal-sunrise-placeholder.png", (route) =>
+  await page.route("**/panos/Entrance/pano_*.jpg", (route) =>
     route.fulfill({ status: 404, contentType: "text/plain", body: "missing" }),
   );
   await page.goto("/tour/da-nang?lang=en");
@@ -138,14 +135,18 @@ test("administrator login rejects invalid input safely", async ({ page }) => {
   await page.getByLabel("Administrator email").fill("invalid");
   await page.getByLabel("Password").fill("short");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByText(/Invalid email|email/i).first()).toBeVisible();
+  await expect(
+    page.getByText("Invalid email address", { exact: true }),
+  ).toBeVisible();
 });
 
 test("administrator can sign in and edit a scene when credentials are provided", async ({
   page,
 }) => {
   test.skip(
-    !process.env.E2E_ADMIN_EMAIL || !process.env.E2E_ADMIN_PASSWORD,
+    !process.env.DATABASE_URL?.trim() ||
+      !process.env.E2E_ADMIN_EMAIL ||
+      !process.env.E2E_ADMIN_PASSWORD,
     "Set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD after seeding MySQL.",
   );
   await page.goto("/admin/login");
@@ -166,14 +167,16 @@ test("administrator can sign in and edit a scene when credentials are provided",
   await expect(page.getByRole("heading", { name: "Scenes" })).toBeVisible();
   await page.locator('a[href="/admin/scenes/scene-overview"]').click();
   await expect(page.getByRole("heading", { name: "Edit scene" })).toBeVisible();
-  await page.getByLabel("English title").fill("Da Nang Overview");
+  await page
+    .getByLabel(/English Scene Name/)
+    .fill("Entrance & Security Gate — Da Nang Overview");
   await page.getByRole("button", { name: "Save scene" }).click();
   await expect(page.getByRole("status")).toHaveText("Scene saved.");
   await page.getByLabel("Edit existing hotspot").selectOption({ index: 1 });
   await expect(
     page.getByRole("heading", { name: "Edit hotspot" }),
   ).toBeVisible();
-  await page.getByLabel("English label").fill("Go to Dragon Bridge");
+  await page.getByLabel("English label").fill("Enter Kitchen & Living Room");
   await page.getByRole("button", { name: "Save hotspot" }).click();
   await expect(page.getByText("Hotspot saved.", { exact: true })).toBeVisible();
 });

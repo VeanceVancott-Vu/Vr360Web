@@ -294,10 +294,10 @@ describe("authenticated administrator CRUD with MySQL", () => {
       deleteRequest("/api/admin/categories/" + categoryId),
       recordContext("categories", categoryId),
     );
-    expect(protectedCategoryResponse.status).toBe(409);
+    expect(protectedCategoryResponse.status).toBe(422);
     await expect(protectedCategoryResponse.json()).resolves.toMatchObject({
       success: false,
-      error: { code: "RELATED_RECORDS" },
+      error: { code: "INVALID_RELATION" },
     });
 
     await successData<{ deleted: true }>(

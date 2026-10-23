@@ -7,10 +7,12 @@ import { useState, useSyncExternalStore } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { adminRequest } from "@/lib/api/admin-client";
 import { loginSchema } from "@/lib/validation/schemas";
 
 type LoginValues = z.infer<typeof loginSchema>;
 const subscribeToHydration = () => () => undefined;
+const sessionExpiredMessage = "Your session has expired. Please sign in again.";
 
 export function AdminLoginForm() {
   const router = useRouter();
@@ -32,27 +34,32 @@ export function AdminLoginForm() {
 
   async function submit(values: LoginValues) {
     setServerError(null);
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
-    });
-    const result = (await response.json()) as {
-      success: boolean;
-      error?: { message?: string };
-    };
-    if (!response.ok || !result.success) {
-      setServerError(result.error?.message ?? "Unable to sign in.");
-      return;
+    try {
+      await adminRequest<unknown>("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+        redirectOnUnauthorized: false,
+      });
+      const requested = searchParams.get("next");
+      const destination =
+        requested?.startsWith("/admin") && !requested.startsWith("//")
+          ? requested
+          : "/admin";
+      router.replace(destination);
+      router.refresh();
+    } catch (error: unknown) {
+      setServerError(
+        error instanceof Error ? error.message : "Unable to sign in.",
+      );
     }
-    const requested = searchParams.get("next");
-    const destination =
-      requested?.startsWith("/admin") && !requested.startsWith("//")
-        ? requested
-        : "/admin";
-    router.replace(destination);
-    router.refresh();
   }
+
+  const visibleError =
+    serverError ??
+    (searchParams.get("reason") === "session-expired"
+      ? sessionExpiredMessage
+      : null);
 
   return (
     <form
@@ -84,9 +91,9 @@ export function AdminLoginForm() {
           <span className="field-error">{errors.password.message}</span>
         ) : null}
       </div>
-      {serverError ? (
+      {visibleError ? (
         <p className="field-error" role="alert">
-          {serverError}
+          {visibleError}
         </p>
       ) : null}
       <button className="primary-button" type="submit" disabled={isSubmitting}>

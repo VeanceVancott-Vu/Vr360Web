@@ -52,14 +52,14 @@ export async function getPublishedTour(slug: string): Promise<TourDto | null> {
 
     const floorPlans = prisma.floorPlan
       ? await prisma.floorPlan.findMany({
-          where: { tourId: tour.id },
-          orderBy: [
-            { isDefault: "desc" },
-            { updatedAt: "desc" },
-            { sortOrder: "asc" },
-          ],
-          include: { markers: true },
-        })
+        where: { tourId: tour.id },
+        orderBy: [
+          { isDefault: "desc" },
+          { updatedAt: "desc" },
+          { sortOrder: "asc" },
+        ],
+        include: { markers: true },
+      })
       : [];
     const publishedSceneIds = new Set(tour.scenes.map((scene) => scene.id));
 
@@ -142,12 +142,23 @@ export async function listPublishedTours(
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
+
+        // Count only scenes that visitors can actually access.
+        include: {
+          scenes: {
+            where: { isPublished: true },
+            select: { id: true },
+          },
+        },
       }),
-      prisma.tour.count({ where: { isPublished: true } }),
+      prisma.tour.count({
+        where: { isPublished: true },
+      }),
     ]);
     return {
       items: tours.map((tour) => ({
         ...tour,
+        sceneCount: tour.scenes.length,
         categories: [],
         scenes: [],
       })),

@@ -38,21 +38,26 @@ import {
 } from "@/lib/analytics/privacy";
 import { getDictionary, parseLanguage } from "@/lib/i18n/dictionaries";
 import { selectTourFloorPlan } from "@/lib/floor-plans/select";
+import { playAudio } from "@/lib/media/playback";
 import {
   scheduleNextPreview,
   warmActivePanorama,
 } from "@/lib/pannellum/preload";
+import { rememberRecentScene } from "@/lib/tour/recent-scenes";
 import type { HotspotDto, Language, SceneDto, TourDto } from "@/lib/types";
 import { isSafeExternalUrl, parseSceneSlug, sceneHref } from "@/lib/utils/url";
 
-const TourMapModal = dynamic(() => import("@/components/tour/map/TourMapModal"), {
-  ssr: false,
-  loading: () => (
-    <div className="toast" role="status">
-      Loading map…
-    </div>
-  ),
-});
+const TourMapModal = dynamic(
+  () => import("@/components/tour/map/TourMapModal"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="toast" role="status">
+        Loading map…
+      </div>
+    ),
+  },
+);
 
 const subscribeToHydration = () => () => undefined;
 
@@ -181,17 +186,7 @@ export function TourExperience({ tour }: { tour: TourDto }) {
   }, [trackEvent]);
 
   useEffect(() => {
-    const key = "dn360-recent-scenes";
-    const existing = JSON.parse(sessionStorage.getItem(key) ?? "[]") as unknown;
-    const values = Array.isArray(existing)
-      ? existing.filter((item): item is string => typeof item === "string")
-      : [];
-    sessionStorage.setItem(
-      key,
-      JSON.stringify(
-        [scene.id, ...values.filter((id) => id !== scene.id)].slice(0, 6),
-      ),
-    );
+    rememberRecentScene(sessionStorage, scene.id);
     trackEvent("SCENE_OPENED", scene.id);
   }, [scene.id, trackEvent]);
 
@@ -258,8 +253,11 @@ export function TourExperience({ tour }: { tour: TourDto }) {
         hotspotAudioRef.current?.pause();
         const audio = new Audio(hotspot.audioUrl);
         hotspotAudioRef.current = audio;
-        void audio.play().catch(() => setToast(dictionary.noAudio));
-        trackEvent("AUDIO_PLAYED", scene.id);
+        void playAudio(
+          audio,
+          () => trackEvent("AUDIO_PLAYED", scene.id),
+          () => setToast(dictionary.noAudio),
+        );
         return;
       }
       if (

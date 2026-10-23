@@ -1,3 +1,6 @@
+import { Plus } from "lucide-react";
+import Link from "next/link";
+
 import { ResourceTable } from "@/components/admin/layout/ResourceTable";
 import { prisma } from "@/lib/database/client";
 
@@ -12,9 +15,13 @@ export default async function AdminCategoriesPage() {
           <p className="eyebrow">Taxonomy</p>
           <h1>Categories</h1>
         </div>
+        <Link className="primary-button" href="/admin/categories/new">
+          <Plus size={17} aria-hidden="true" /> New category
+        </Link>
       </header>
       <ResourceTable
         resource="categories"
+        editBase="/admin/categories"
         rows={categories.map((category) => ({
           id: category.id,
           title: category.nameVi,

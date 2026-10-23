@@ -122,3 +122,24 @@ export const localized = (
   item: { titleVi: string; titleEn: string },
   language: Language,
 ) => (language === "vi" ? item.titleVi : item.titleEn);
+
+
+export interface TourDto extends LocalizedContent {
+  id: string;
+  slug: string;
+  titleVi: string;
+  titleEn: string;
+  descriptionVi: string;
+  descriptionEn: string;
+  coverImageUrl: string;
+  welcomeImageUrl: string;
+  defaultSceneId: string | null;
+  isPublished: boolean;
+
+  // Number of published scenes, including in list summaries.
+  sceneCount?: number;
+
+  categories: CategoryDto[];
+  scenes: SceneDto[];
+  floorPlans?: FloorPlanDto[];
+}

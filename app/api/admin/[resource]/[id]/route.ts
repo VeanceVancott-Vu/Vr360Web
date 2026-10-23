@@ -1,4 +1,4 @@
-import { ZodError, z } from "zod";
+import { z } from "zod";
 
 import {
   adminResourceSchema,
@@ -6,7 +6,8 @@ import {
   getAdminResource,
   updateAdminResource,
 } from "@/lib/admin/crud";
-import { apiError, apiSuccess, zodFields } from "@/lib/api/response";
+import { adminMutationErrorResponse } from "@/lib/admin/errors";
+import { apiError, apiSuccess } from "@/lib/api/response";
 import { getAdminSession, isSameOrigin } from "@/lib/auth/session";
 
 const idSchema = z.string().min(1).max(191);
@@ -67,26 +68,8 @@ export async function PATCH(
   try {
     return apiSuccess(await updateAdminResource(resource.data, id.data, body));
   } catch (error: unknown) {
-    if (error instanceof ZodError) {
-      return apiError(
-        "VALIDATION_ERROR",
-        "The record contains invalid fields.",
-        422,
-        zodFields(error),
-      );
-    }
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      error.code === "P2002"
-    ) {
-      return apiError(
-        "DUPLICATE_RECORD",
-        "A unique value already exists.",
-        409,
-      );
-    }
+    const response = adminMutationErrorResponse(error);
+    if (response) return response;
     console.error("Administrator update failed", error);
     return apiError("INTERNAL_ERROR", "Unable to update the record.", 500);
   }
@@ -113,18 +96,8 @@ export async function DELETE(
     await deleteAdminResource(resource.data, id.data);
     return apiSuccess({ deleted: true });
   } catch (error: unknown) {
-    if (typeof error === "object" && error !== null && "code" in error) {
-      if (error.code === "P2025") {
-        return apiError("NOT_FOUND", "Record not found.", 404);
-      }
-      if (error.code === "P2003") {
-        return apiError(
-          "RELATED_RECORDS",
-          "This record is still referenced. Reassign or remove related records first.",
-          409,
-        );
-      }
-    }
+    const response = adminMutationErrorResponse(error);
+    if (response) return response;
     console.error("Administrator delete failed", error);
     return apiError("INTERNAL_ERROR", "Unable to delete the record.", 500);
   }

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { isAllowedMediaUrl } from "@/lib/media/origins";
+
 const slug = z
   .string()
   .trim()
@@ -11,8 +13,10 @@ const databaseId = z.string().trim().min(1).max(191);
 
 export const loginSchema = z.object({
   email: z
-    .email()
+    .string()
+    .trim()
     .max(254)
+    .email()
     .transform((value) => value.toLowerCase()),
   password: z.string().min(10).max(128),
 });
@@ -21,38 +25,47 @@ export const searchSchema = z.object({
   q: z.string().trim().min(2).max(80),
 });
 
-export const analyticsSchema = z.object({
-  tourId: z.string().min(1).max(64),
-  sceneId: z.string().min(1).max(64).nullable().optional(),
-  eventType: z.enum([
-    "TOUR_OPENED",
-    "SCENE_OPENED",
-    "HOTSPOT_CLICKED",
-    "AUDIO_PLAYED",
-  ]),
-  sessionToken: z
-    .string()
-    .trim()
-    .min(16)
-    .max(128)
-    .regex(/^[A-Za-z0-9_-]+$/),
-});
+export const analyticsSchema = z
+  .object({
+    tourId: z.string().min(1).max(64),
+    sceneId: z.string().min(1).max(64).nullable().optional(),
+    eventType: z.enum([
+      "TOUR_OPENED",
+      "SCENE_OPENED",
+      "HOTSPOT_CLICKED",
+      "AUDIO_PLAYED",
+    ]),
+    sessionToken: z
+      .string()
+      .trim()
+      .min(16)
+      .max(128)
+      .regex(/^[A-Za-z0-9_-]+$/),
+  })
+  .superRefine((event, context) => {
+    if (event.eventType === "TOUR_OPENED" && event.sceneId != null) {
+      context.addIssue({
+        code: "custom",
+        path: ["sceneId"],
+        message: "TOUR_OPENED events must not include a scene.",
+      });
+    }
+    if (event.eventType !== "TOUR_OPENED" && event.sceneId == null) {
+      context.addIssue({
+        code: "custom",
+        path: ["sceneId"],
+        message: event.eventType + " events require a scene.",
+      });
+    }
+  });
 
 const urlOrPath = z
   .string()
   .trim()
   .max(2048)
   .refine(
-    (value) =>
-      value.startsWith("/") ||
-      (() => {
-        try {
-          return ["http:", "https:"].includes(new URL(value).protocol);
-        } catch {
-          return false;
-        }
-      })(),
-    "Use a local path or an HTTP(S) URL.",
+    (value) => isAllowedMediaUrl(value),
+    "Use a local path or a URL from a configured media origin.",
   );
 
 export const tourInputSchema = z.object({
@@ -63,7 +76,7 @@ export const tourInputSchema = z.object({
   descriptionEn: z.string().trim().min(10).max(5000),
   coverImageUrl: urlOrPath,
   welcomeImageUrl: urlOrPath,
-  defaultSceneId: z.string().nullable().optional(),
+  defaultSceneId: databaseId.nullable().optional(),
   isPublished: z.boolean().default(false),
 });
 
@@ -75,33 +88,139 @@ export const categoryInputSchema = z.object({
   sortOrder: z.number().int().min(0).max(10000),
 });
 
-export const sceneInputSchema = z.object({
-  tourId: z.string().min(1),
-  categoryId: z.string().min(1),
-  slug,
-  titleVi: z.string().trim().min(2).max(160),
-  titleEn: z.string().trim().min(2).max(160),
-  shortDescriptionVi: z.string().trim().min(4).max(300),
-  shortDescriptionEn: z.string().trim().min(4).max(300),
-  fullDescriptionVi: z.string().trim().min(10).max(8000),
-  fullDescriptionEn: z.string().trim().min(10).max(8000),
-  panoramaType: z.enum(["EQUIRECTANGULAR", "CUBEMAP", "MULTIRES"]),
-  panoramaUrl: urlOrPath.nullable(),
-  previewImageUrl: urlOrPath,
-  multiresConfig: z.record(z.string(), z.unknown()).nullable().optional(),
-  initialPitch: z.number().min(-90).max(90),
-  initialYaw: z.number().min(-180).max(180),
-  initialHfov: z.number().min(30).max(140),
-  minimumHfov: z.number().min(20).max(120),
-  maximumHfov: z.number().min(60).max(180),
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
-  narrationAudioVi: urlOrPath.nullable().optional(),
-  narrationAudioEn: urlOrPath.nullable().optional(),
-  attribution: z.string().trim().max(500).nullable().optional(),
-  sortOrder: z.number().int().min(0).max(10000),
-  isPublished: z.boolean().default(false),
+const cubemapConfigSchema = z.object({
+  cubemapUrls: z.tuple([
+    urlOrPath,
+    urlOrPath,
+    urlOrPath,
+    urlOrPath,
+    urlOrPath,
+    urlOrPath,
+  ]),
 });
+
+const multiresConfigSchema = z.object({
+  basePath: urlOrPath,
+  path: z
+    .string()
+    .trim()
+    .min(1)
+    .max(2048)
+    .refine(
+      (value) =>
+        ["%l", "%s", "%x", "%y"].every((token) => value.includes(token)),
+      "The tile path must include %l, %s, %x, and %y placeholders.",
+    ),
+  fallbackPath: z
+    .string()
+    .trim()
+    .min(1)
+    .max(2048)
+    .refine(
+      (value) => value.includes("%s"),
+      "The fallback path must include a %s placeholder.",
+    )
+    .optional(),
+  extension: z
+    .string()
+    .trim()
+    .min(1)
+    .max(10)
+    .regex(/^[a-zA-Z0-9]+$/, "Use a file extension without a leading dot."),
+  tileResolution: z.number().int().min(1).max(16384),
+  maxLevel: z.number().int().min(1).max(30),
+  cubeResolution: z.number().int().min(1).max(262144),
+});
+
+export const sceneInputSchema = z
+  .object({
+    tourId: databaseId,
+    categoryId: databaseId,
+    slug,
+    titleVi: z.string().trim().min(2).max(160),
+    titleEn: z.string().trim().min(2).max(160),
+    shortDescriptionVi: z.string().trim().min(4).max(300),
+    shortDescriptionEn: z.string().trim().min(4).max(300),
+    fullDescriptionVi: z.string().trim().min(10).max(8000),
+    fullDescriptionEn: z.string().trim().min(10).max(8000),
+    panoramaType: z.enum(["EQUIRECTANGULAR", "CUBEMAP", "MULTIRES"]),
+    panoramaUrl: urlOrPath.nullable(),
+    previewImageUrl: urlOrPath,
+    multiresConfig: z.record(z.string(), z.unknown()).nullable().optional(),
+    initialPitch: z.number().min(-90).max(90),
+    initialYaw: z.number().min(-180).max(180),
+    initialHfov: z.number().min(30).max(140),
+    minimumHfov: z.number().min(20).max(120),
+    maximumHfov: z.number().min(60).max(180),
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+    narrationAudioVi: urlOrPath.nullable().optional(),
+    narrationAudioEn: urlOrPath.nullable().optional(),
+    attribution: z.string().trim().max(500).nullable().optional(),
+    sortOrder: z.number().int().min(0).max(10000),
+    isPublished: z.boolean().default(false),
+  })
+  .superRefine((scene, context) => {
+    if (scene.minimumHfov > scene.initialHfov) {
+      context.addIssue({
+        code: "custom",
+        path: ["initialHfov"],
+        message: "Initial HFOV must be greater than or equal to minimum HFOV.",
+      });
+    }
+    if (scene.initialHfov > scene.maximumHfov) {
+      context.addIssue({
+        code: "custom",
+        path: ["initialHfov"],
+        message: "Initial HFOV must be less than or equal to maximum HFOV.",
+      });
+    }
+
+    if (scene.panoramaType === "EQUIRECTANGULAR" && !scene.panoramaUrl) {
+      context.addIssue({
+        code: "custom",
+        path: ["panoramaUrl"],
+        message: "An equirectangular panorama URL is required.",
+      });
+    }
+
+    const configSchema =
+      scene.panoramaType === "CUBEMAP"
+        ? cubemapConfigSchema
+        : scene.panoramaType === "MULTIRES"
+          ? multiresConfigSchema
+          : null;
+    if (!configSchema) return;
+
+    const result = configSchema.safeParse(scene.multiresConfig);
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        context.addIssue({
+          code: "custom",
+          path: ["multiresConfig", ...issue.path],
+          message:
+            scene.panoramaType === "CUBEMAP"
+              ? `Invalid cubemap configuration: ${issue.message}`
+              : `Invalid multiresolution configuration: ${issue.message}`,
+        });
+      }
+    }
+  })
+  .transform((scene) => {
+    if (scene.panoramaType === "CUBEMAP") {
+      return {
+        ...scene,
+        multiresConfig: cubemapConfigSchema.parse(scene.multiresConfig),
+      };
+    }
+    if (scene.panoramaType === "MULTIRES") {
+      return {
+        ...scene,
+        multiresConfig: multiresConfigSchema.parse(scene.multiresConfig),
+      };
+    }
+    return scene;
+  });
 
 const hotspotBase = z.object({
   sceneId: z.string().min(1),

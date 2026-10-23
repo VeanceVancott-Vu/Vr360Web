@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRef, useState } from "react";
 
 import { PanoramaViewer, type PanoramaViewerHandle } from "@/components/tour/viewer/PanoramaViewer";
+import { adminRequest } from "@/lib/api/admin-client";
 import type { HotspotDto, SceneDto } from "@/lib/types";
 
 export interface PickedCoordinates {
@@ -37,6 +38,7 @@ export function HotspotCoordinatePicker({
     yaw: 0,
   });
   const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const selectedHotspot = hotspots.find((h) => h.id === selectedHotspotId);
 
@@ -89,22 +91,25 @@ export function HotspotCoordinatePicker({
     if (!selectedHotspot) return;
     const aim = getCurrentAim();
     setIsProcessing(true);
+    setErrorMessage(null);
     try {
       const payload = {
         ...selectedHotspot,
         pitch: aim.pitch,
         yaw: aim.yaw,
       };
-      const res = await fetch(`/api/admin/hotspots/${selectedHotspot.id}`, {
+      await adminRequest<unknown>(`/api/admin/hotspots/${selectedHotspot.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (res.ok) {
-        setCoordinates(aim);
-        onPick(aim);
-        onSaved?.();
-      }
+      setCoordinates(aim);
+      onPick(aim);
+      onSaved?.();
+    } catch (error: unknown) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to move hotspot.",
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -115,14 +120,17 @@ export function HotspotCoordinatePicker({
     const label = selectedHotspot.labelVi || selectedHotspot.labelEn || "hotspot";
     if (!window.confirm(`Are you sure you want to delete "${label}"?`)) return;
     setIsProcessing(true);
+    setErrorMessage(null);
     try {
-      const res = await fetch(`/api/admin/hotspots/${selectedHotspot.id}`, {
+      await adminRequest<unknown>(`/api/admin/hotspots/${selectedHotspot.id}`, {
         method: "DELETE",
       });
-      if (res.ok) {
-        onSelectHotspot?.("");
-        onSaved?.();
-      }
+      onSelectHotspot?.("");
+      onSaved?.();
+    } catch (error: unknown) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to delete hotspot.",
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -469,6 +477,12 @@ export function HotspotCoordinatePicker({
           />
         </button>
       )}
+
+      {errorMessage ? (
+        <p className="field-error" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
 
       {/* Bottom Control Bar */}
       <div

@@ -35,6 +35,30 @@ describe("memory rate limiting", () => {
     });
   });
 
+  it("inspects a blocked window without consuming another attempt", async () => {
+    let now = 1_000;
+    const store = new MemoryRateLimitStore(() => now);
+
+    await store.consume("login:account", 2, 10_000);
+    await store.consume("login:account", 2, 10_000);
+
+    await expect(store.inspect("login:account", 2, 10_000)).resolves.toEqual({
+      allowed: false,
+      retryAfterSeconds: 10,
+    });
+    now = 5_000;
+    await expect(store.inspect("login:account", 2, 10_000)).resolves.toEqual({
+      allowed: false,
+      retryAfterSeconds: 6,
+    });
+
+    now = 11_000;
+    await expect(store.inspect("login:account", 2, 10_000)).resolves.toEqual({
+      allowed: true,
+      retryAfterSeconds: 0,
+    });
+  });
+
   it("rejects invalid limiter settings", async () => {
     const store = new MemoryRateLimitStore();
     await expect(store.consume("", 1, 1_000)).rejects.toBeInstanceOf(
@@ -68,6 +92,30 @@ describe("Upstash rate limiting", () => {
       ["900000"],
     );
     expect(evaluate.mock.calls[0]?.[1]?.[0]).not.toContain("203.0.113.10");
+  });
+
+  it("inspects the shared window without incrementing it", async () => {
+    const evaluate = vi.fn().mockResolvedValue([5, 61_001]);
+    const store = new UpstashRateLimitStore(
+      { eval: evaluate } as unknown as Pick<Redis, "eval">,
+      "test:limits",
+    );
+
+    await expect(
+      store.inspect("login:account:private-digest", 5, 900_000),
+    ).resolves.toEqual({
+      allowed: false,
+      retryAfterSeconds: 62,
+    });
+
+    expect(evaluate).toHaveBeenCalledOnce();
+    expect(evaluate).toHaveBeenCalledWith(
+      expect.stringContaining("redis.call('GET', KEYS[1])"),
+      [expect.stringMatching(/^test:limits:[a-f0-9]{64}$/)],
+      [],
+    );
+    expect(evaluate.mock.calls[0]?.[0]).not.toContain("INCR");
+    expect(evaluate.mock.calls[0]?.[1]?.[0]).not.toContain("private-digest");
   });
 
   it("fails safely when Redis returns an invalid response", async () => {
@@ -125,7 +173,7 @@ describe("rate-limit configuration", () => {
 });
 
 describe("request addresses", () => {
-  it("uses the first forwarded address", () => {
+  it("ignores client-supplied proxy headers by default", () => {
     const request = new Request("http://localhost", {
       headers: {
         "X-Forwarded-For": "203.0.113.5, 10.0.0.2",
@@ -133,7 +181,38 @@ describe("request addresses", () => {
       },
     });
 
-    expect(requestAddress(request)).toBe("203.0.113.5");
+    expect(requestAddress(request, {})).toBe("local");
+  });
+
+  it("uses the first valid forwarded address only for a trusted proxy", () => {
+    const request = new Request("http://localhost", {
+      headers: {
+        "X-Forwarded-For": "203.0.113.5, 10.0.0.2",
+        "X-Real-IP": "10.0.0.3",
+      },
+    });
+
+    expect(requestAddress(request, { TRUST_PROXY_HEADERS: "true" })).toBe(
+      "203.0.113.5",
+    );
+  });
+
+  it("rejects malformed forwarding addresses from a trusted proxy", () => {
+    const request = new Request("http://localhost", {
+      headers: { "X-Forwarded-For": "chosen-by-client" },
+    });
+
+    expect(requestAddress(request, { TRUST_PROXY_HEADERS: "true" })).toBe(
+      "local",
+    );
+  });
+
+  it("rejects invalid trusted-proxy configuration", () => {
+    expect(() =>
+      requestAddress(new Request("http://localhost"), {
+        TRUST_PROXY_HEADERS: "sometimes",
+      }),
+    ).toThrow(RateLimitConfigurationError);
   });
 
   it("falls back without throwing when proxy headers are absent", () => {

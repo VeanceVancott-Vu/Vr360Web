@@ -72,6 +72,8 @@ declare module "pannellum" {
       hfov?: number,
     ): Viewer;
     addScene(sceneId: string, config: ViewerConfig): Viewer;
+    addHotSpot(config: HotSpotConfig, sceneId?: string): Viewer;
+    removeHotSpot(hotSpotId: string, sceneId?: string): boolean;
   }
 
   export function viewer(

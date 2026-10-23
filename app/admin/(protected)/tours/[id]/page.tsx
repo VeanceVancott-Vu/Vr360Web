@@ -9,7 +9,14 @@ export default async function EditTourPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const tour = await prisma.tour.findUnique({ where: { id } });
+  const [tour, scenes] = await Promise.all([
+    prisma.tour.findUnique({ where: { id } }),
+    prisma.scene.findMany({
+      where: { tourId: id },
+      orderBy: [{ sortOrder: "asc" }, { titleEn: "asc" }],
+      select: { id: true, titleEn: true },
+    }),
+  ]);
   if (!tour) notFound();
   return (
     <>
@@ -21,6 +28,7 @@ export default async function EditTourPage({
       </header>
       <TourForm
         id={tour.id}
+        scenes={scenes}
         initial={{
           slug: tour.slug,
           titleVi: tour.titleVi,

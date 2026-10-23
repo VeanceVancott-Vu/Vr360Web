@@ -31,6 +31,28 @@ jobs:
       - run: npm run test
       - run: npm run build
 
+  e2e:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SESSION_SECRET: ci-only-session-secret-with-at-least-thirty-two-characters
+      NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+      ANALYTICS_HASH_SECRET: ci-only-analytics-secret-with-at-least-thirty-two-characters
+      ANALYTICS_RETENTION_DAYS: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+        env:
+          DATABASE_URL: mysql://generate:generate@127.0.0.1:3306/generate
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --project=chromium
+
   container:
     needs: quality
     runs-on: ubuntu-latest

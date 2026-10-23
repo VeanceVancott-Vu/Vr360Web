@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { adminRequest } from "@/lib/api/admin-client";
 import type { FloorPlanDto } from "@/lib/types";
 
 export function FloorMapCardActions({ plan }: { plan: FloorPlanDto }) {
@@ -31,24 +32,17 @@ export function FloorMapCardActions({ plan }: { plan: FloorPlanDto }) {
     formData.append("file", file);
 
     try {
-      const response = await fetch("/api/admin/upload", {
+      const upload = await adminRequest<{ url: string }>("/api/admin/upload", {
         method: "POST",
         body: formData,
       });
-
-      const resData = (await response.json()) as {
-        success: boolean;
-        data?: { url: string };
-        error?: { message: string };
-      };
-
-      if (resData.success && resData.data?.url) {
-        setImageUrl(resData.data.url);
-      } else {
-        setErrorMsg(resData.error?.message || "File upload failed.");
-      }
-    } catch {
-      setErrorMsg("An error occurred during file upload.");
+      setImageUrl(upload.url);
+    } catch (error: unknown) {
+      setErrorMsg(
+        error instanceof Error
+          ? error.message
+          : "An error occurred during file upload.",
+      );
     } finally {
       setUploading(false);
     }
@@ -60,7 +54,7 @@ export function FloorMapCardActions({ plan }: { plan: FloorPlanDto }) {
     setErrorMsg(null);
 
     try {
-      const response = await fetch(`/api/admin/floor-plans/${plan.id}`, {
+      await adminRequest<unknown>(`/api/admin/floor-plans/${plan.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -72,15 +66,12 @@ export function FloorMapCardActions({ plan }: { plan: FloorPlanDto }) {
           sortOrder: plan.sortOrder,
         }),
       });
-
-      if (response.ok) {
-        setEditing(false);
-        router.refresh();
-      } else {
-        setErrorMsg("Failed to update floor plan.");
-      }
-    } catch {
-      setErrorMsg("An error occurred.");
+      setEditing(false);
+      router.refresh();
+    } catch (error: unknown) {
+      setErrorMsg(
+        error instanceof Error ? error.message : "An error occurred.",
+      );
     } finally {
       setSaving(false);
     }
@@ -97,17 +88,16 @@ export function FloorMapCardActions({ plan }: { plan: FloorPlanDto }) {
 
     setDeleting(true);
     try {
-      const response = await fetch(`/api/admin/floor-plans/${plan.id}`, {
+      await adminRequest<unknown>(`/api/admin/floor-plans/${plan.id}`, {
         method: "DELETE",
       });
-
-      if (response.ok) {
-        router.refresh();
-      } else {
-        alert("Failed to delete floor plan.");
-      }
-    } catch {
-      alert("An error occurred while deleting.");
+      router.refresh();
+    } catch (error: unknown) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "An error occurred while deleting.",
+      );
     } finally {
       setDeleting(false);
     }

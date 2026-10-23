@@ -1,15 +1,41 @@
 import { compare } from "bcryptjs";
+import { createHash } from "node:crypto";
 
 import { apiError, apiSuccess, zodFields } from "@/lib/api/response";
 import { isSameOrigin, setAdminSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/database/client";
 import {
   checkRateLimit,
+  inspectRateLimit,
   RateLimitConfigurationError,
   RateLimitUnavailableError,
   requestAddress,
 } from "@/lib/rate-limit";
 import { loginSchema } from "@/lib/validation/schemas";
+
+const LOGIN_WINDOW_MS = 15 * 60_000;
+const IP_LOGIN_ATTEMPT_LIMIT = 20;
+const ACCOUNT_FAILED_LOGIN_LIMIT = 5;
+const DUMMY_ADMIN_PASSWORD_HASH =
+  "$2b$12$ri425bF/pNxhOzhua4DXe.9mICdm5/OhzgNTdAs/QobTS2pKAahdO";
+
+function accountRateLimitKey(email: string): string {
+  return "login:account:" + createHash("sha256").update(email).digest("hex");
+}
+
+function rateLimitUnavailable(error: unknown): Response {
+  if (
+    error instanceof RateLimitConfigurationError ||
+    error instanceof RateLimitUnavailableError
+  ) {
+    return apiError(
+      "RATE_LIMIT_UNAVAILABLE",
+      "Request protection is temporarily unavailable.",
+      503,
+    );
+  }
+  throw error;
+}
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) {
@@ -22,22 +48,12 @@ export async function POST(request: Request) {
   let limit;
   try {
     limit = await checkRateLimit(
-      `login:${requestAddress(request)}`,
-      5,
-      15 * 60_000,
+      "login:ip:" + requestAddress(request),
+      IP_LOGIN_ATTEMPT_LIMIT,
+      LOGIN_WINDOW_MS,
     );
   } catch (error) {
-    if (
-      error instanceof RateLimitConfigurationError ||
-      error instanceof RateLimitUnavailableError
-    ) {
-      return apiError(
-        "RATE_LIMIT_UNAVAILABLE",
-        "Request protection is temporarily unavailable.",
-        503,
-      );
-    }
-    throw error;
+    return rateLimitUnavailable(error);
   }
   if (!limit.allowed) {
     return apiError(
@@ -68,13 +84,54 @@ export async function POST(request: Request) {
       503,
     );
   }
+  const accountKey = accountRateLimitKey(parsed.data.email);
+  let accountInspection;
+  try {
+    accountInspection = await inspectRateLimit(
+      accountKey,
+      ACCOUNT_FAILED_LOGIN_LIMIT,
+      LOGIN_WINDOW_MS,
+    );
+  } catch (error) {
+    return rateLimitUnavailable(error);
+  }
+  if (!accountInspection.allowed) {
+    return apiError(
+      "RATE_LIMITED",
+      "Too many login attempts. Retry in " +
+        accountInspection.retryAfterSeconds +
+        " seconds.",
+      429,
+    );
+  }
   try {
     const user = await prisma.user.findUnique({
       where: { email: parsed.data.email },
     });
-    const valid =
-      user && (await compare(parsed.data.password, user.passwordHash));
+    const valid = await compare(
+      parsed.data.password,
+      user?.passwordHash ?? DUMMY_ADMIN_PASSWORD_HASH,
+    );
     if (!user || !valid || user.role !== "ADMIN") {
+      let accountLimit;
+      try {
+        accountLimit = await checkRateLimit(
+          accountKey,
+          ACCOUNT_FAILED_LOGIN_LIMIT,
+          LOGIN_WINDOW_MS,
+        );
+      } catch (error) {
+        return rateLimitUnavailable(error);
+      }
+      if (!accountLimit.allowed) {
+        return apiError(
+          "RATE_LIMITED",
+          "Too many login attempts. Retry in " +
+            accountLimit.retryAfterSeconds +
+            " seconds.",
+          429,
+        );
+      }
       return apiError(
         "INVALID_CREDENTIALS",
         "Email or password is incorrect.",

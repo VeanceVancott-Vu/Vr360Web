@@ -4,9 +4,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
-
+import { ImageUploadField } from "@/components/admin/ImageUploadField";
+import { adminRequest } from "@/lib/api/admin-client";
 import { tourInputSchema } from "@/lib/validation/schemas";
 
 type TourInput = z.input<typeof tourInputSchema>;
@@ -15,15 +16,19 @@ type TourValues = z.output<typeof tourInputSchema>;
 export function TourForm({
   id,
   initial,
+  scenes = [],
 }: {
   id?: string;
   initial?: TourInput;
+  scenes?: { id: string; titleEn: string }[];
 }) {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
+    setValue,
+    control,
     formState: { errors, isDirty, isSubmitting },
   } = useForm<TourInput, unknown, TourValues>({
     resolver: zodResolver(tourInputSchema),
@@ -41,6 +46,20 @@ export function TourForm({
         isPublished: false,
       } satisfies TourInput),
   });
+  const slug = useWatch({
+    control,
+    name: "slug",
+  });
+
+  const coverImageUrl = useWatch({
+    control,
+    name: "coverImageUrl",
+  });
+
+  const welcomeImageUrl = useWatch({
+    control,
+    name: "welcomeImageUrl",
+  });
 
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
@@ -52,28 +71,23 @@ export function TourForm({
 
   async function submit(values: TourValues) {
     setMessage(null);
-    const response = await fetch(
-      id ? `/api/admin/tours/${id}` : "/api/admin/tours",
-      {
-        method: id ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      },
-    );
-    const result = (await response.json()) as {
-      success: boolean;
-      data?: { id?: string };
-      error?: { message?: string };
-    };
-    if (!response.ok || !result.success) {
-      setMessage(result.error?.message ?? "Save failed.");
-      return;
+    try {
+      const tour = await adminRequest<{ id?: string }>(
+        id ? `/api/admin/tours/${id}` : "/api/admin/tours",
+        {
+          method: id ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(values),
+        },
+      );
+      setMessage("Tour saved.");
+      if (!id && tour.id) {
+        router.replace(`/admin/tours/${tour.id}`);
+      }
+      router.refresh();
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : "Save failed.");
     }
-    setMessage("Tour saved.");
-    if (!id && result.data?.id) {
-      router.replace(`/admin/tours/${result.data.id}`);
-    }
-    router.refresh();
   }
 
   return (
@@ -111,23 +125,56 @@ export function TourForm({
       >
         <textarea {...register("descriptionEn")} />
       </Field>
-      <Field label="Cover image URL" error={errors.coverImageUrl?.message}>
-        <input {...register("coverImageUrl")} />
+
+
+      <Field label="Cover image" error={errors.coverImageUrl?.message}>
+        <ImageUploadField
+          label="Cover image"
+          kind="cover"
+          tourSlug={slug ?? ""}
+          value={coverImageUrl ?? ""}
+          onChange={(url) =>
+            setValue("coverImageUrl", url, {
+              shouldDirty: true,
+              shouldValidate: true,
+            })
+          }
+        />
       </Field>
-      <Field label="Welcome image URL" error={errors.welcomeImageUrl?.message}>
-        <input {...register("welcomeImageUrl")} />
-      </Field>
+
       <Field
-        label="Default scene ID"
-        error={errors.defaultSceneId?.message}
-        full
+        label="Welcome image"
+        error={errors.welcomeImageUrl?.message}
       >
-        <input
+        <ImageUploadField
+          label="Welcome image"
+          kind="welcome"
+          tourSlug={slug ?? ""}
+          value={welcomeImageUrl ?? ""}
+          onChange={(url) =>
+            setValue("welcomeImageUrl", url, {
+              shouldDirty: true,
+              shouldValidate: true,
+            })
+          }
+        />
+      </Field>
+
+
+      <Field label="Default scene" error={errors.defaultSceneId?.message} full>
+        <select
           {...register("defaultSceneId", {
             setValueAs: (value: unknown) =>
               typeof value === "string" ? value.trim() || null : null,
           })}
-        />
+        >
+          <option value="">No default scene selected</option>
+          {scenes.map((scene) => (
+            <option key={scene.id} value={scene.id}>
+              {scene.titleEn}
+            </option>
+          ))}
+        </select>
       </Field>
       {message ? (
         <p

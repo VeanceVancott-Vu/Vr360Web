@@ -1,69 +1,75 @@
-import { randomUUID } from "node:crypto";
-import path from "node:path";
-import { type NextRequest } from "next/server";
 
-import { apiError, apiSuccess, zodFields } from "@/lib/api/response";
-import { getAdminSession, isSameOrigin } from "@/lib/auth/session";
+import { randomUUID } from "node:crypto";
+
+import {
+  getAdminSession,
+  isSameOrigin,
+} from "@/lib/auth/session";
+import {
+  apiError,
+  apiSuccess,
+} from "@/lib/api/response";
 import {
   getMediaStorage,
   MediaStorageConfigurationError,
 } from "@/lib/media/storage";
-import { floorPlanUploadMetadataSchema } from "@/lib/validation/schemas";
 
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-const MAX_MULTIPART_OVERHEAD_BYTES = 1024 * 1024;
-const extensionByContentType = {
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-  "image/webp": ".webp",
-} as const;
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-function isUploadFile(value: FormDataEntryValue | null): value is File {
-  return Boolean(
-    value &&
-    typeof value === "object" &&
-    "arrayBuffer" in value &&
-    typeof value.arrayBuffer === "function" &&
-    "name" in value &&
-    typeof value.name === "string" &&
-    "size" in value &&
-    typeof value.size === "number" &&
-    "type" in value &&
-    typeof value.type === "string",
-  );
+const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+
+function detectImageType(
+  bytes: Uint8Array,
+): { contentType: string; extension: string } | null {
+  // JPEG
+  if (
+    bytes.length >= 3 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[2] === 0xff
+  ) {
+    return { contentType: "image/jpeg", extension: "jpg" };
+  }
+
+  // PNG
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47 &&
+    bytes[4] === 0x0d &&
+    bytes[5] === 0x0a &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0x0a
+  ) {
+    return { contentType: "image/png", extension: "png" };
+  }
+
+  // WebP
+  if (
+    bytes.length >= 12 &&
+    String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
+    String.fromCharCode(...bytes.slice(8, 12)) === "WEBP"
+  ) {
+    return { contentType: "image/webp", extension: "webp" };
+  }
+
+  return null;
 }
 
-function hasExpectedImageSignature(
-  buffer: Buffer,
-  contentType: keyof typeof extensionByContentType,
-): boolean {
-  if (contentType === "image/jpeg") {
-    return (
-      buffer.length >= 3 &&
-      buffer[0] === 0xff &&
-      buffer[1] === 0xd8 &&
-      buffer[2] === 0xff
-    );
-  }
-  if (contentType === "image/png") {
-    return (
-      buffer.length >= 8 &&
-      buffer
-        .subarray(0, 8)
-        .equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
-    );
-  }
-  return (
-    buffer.length >= 12 &&
-    buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
-    buffer.subarray(8, 12).toString("ascii") === "WEBP"
-  );
-}
-
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   const session = await getAdminSession();
-  if (!session)
-    return apiError("UNAUTHORIZED", "Authentication required.", 401);
+
+  if (!session) {
+    return apiError(
+      "UNAUTHORIZED",
+      "Sign in is required.",
+      401,
+    );
+  }
+
   if (!isSameOrigin(request)) {
     return apiError(
       "INVALID_ORIGIN",
@@ -72,79 +78,125 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const contentLength = Number(request.headers.get("content-length"));
-  if (
-    Number.isFinite(contentLength) &&
-    contentLength > MAX_UPLOAD_BYTES + MAX_MULTIPART_OVERHEAD_BYTES
-  ) {
+  let formData: FormData;
+
+  try {
+    formData = await request.formData();
+  } catch {
     return apiError(
-      "PAYLOAD_TOO_LARGE",
-      "Floor plan images must be 10 MB or smaller.",
+      "INVALID_FORM_DATA",
+      "The upload form is invalid.",
+      400,
+    );
+  }
+
+  const file = formData.get("file");
+  const slugValue = formData.get("tourSlug");
+  const kindValue = formData.get("kind");
+
+  if (!(file instanceof File) || file.size === 0) {
+    return apiError(
+      "MISSING_FILE",
+      "Please choose an image.",
+      400,
+    );
+  }
+
+  if (file.size > MAX_IMAGE_BYTES) {
+    return apiError(
+      "FILE_TOO_LARGE",
+      "The image must be 25 MB or smaller.",
       413,
     );
   }
 
+  const tourSlug =
+    typeof slugValue === "string" ? slugValue.trim() : "";
+
+  if (
+    tourSlug.length > 80 ||
+    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(tourSlug)
+  ) {
+    return apiError(
+      "INVALID_TOUR_SLUG",
+      "Enter a valid tour slug before uploading.",
+      422,
+    );
+  }
+
+  const allowedKinds = [
+    "cover",
+    "welcome",
+    "scene-preview",
+    "panorama",
+  ] as const;
+
+  if (
+    typeof kindValue !== "string" ||
+    !(allowedKinds as readonly string[]).includes(kindValue)
+  ) {
+    return apiError(
+      "INVALID_IMAGE_KIND",
+      "Unsupported image type.",
+      400,
+    );
+  }
+
   try {
-    const formData = await request.formData();
-    const file = formData.get("file");
-    if (!isUploadFile(file)) {
-      return apiError("VALIDATION_ERROR", "No file provided for upload.", 422);
-    }
+    // Inspect the actual file signature, not just the browser's
+    // claimed MIME type or filename extension.
+    const header = new Uint8Array(
+      await file.slice(0, 12).arrayBuffer(),
+    );
 
-    const metadata = floorPlanUploadMetadataSchema.safeParse({
-      name: file.name,
-      size: file.size,
-      type: file.type,
-    });
-    if (!metadata.success) {
+    const imageType = detectImageType(header);
+
+    if (!imageType) {
       return apiError(
-        "VALIDATION_ERROR",
-        "Use a PNG, JPEG, or WebP image no larger than 10 MB.",
-        422,
-        zodFields(metadata.error),
+        "INVALID_FILE_TYPE",
+        "Choose a valid JPEG, PNG, or WebP image.",
+        415,
       );
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    if (!hasExpectedImageSignature(buffer, metadata.data.type)) {
-      return apiError(
-        "INVALID_FILE_CONTENT",
-        "The uploaded file contents do not match its image type.",
-        422,
-      );
-    }
+    const fileBytes = new Uint8Array(
+      await file.arrayBuffer(),
+    );
 
-    const extension = extensionByContentType[metadata.data.type];
-    const originalExtension = path.extname(metadata.data.name);
-    const safeName = metadata.data.name
-      .slice(
-        0,
-        Math.max(0, metadata.data.name.length - originalExtension.length),
-      )
-      .toLowerCase()
-      .replace(/[^a-z0-9_-]/g, "_")
-      .replace(/^_+|_+$/g, "")
-      .slice(0, 80);
-    const filename = `${safeName || "floor-plan"}_${randomUUID()}${extension}`;
+    const storage = getMediaStorage();
 
-    const storedMedia = await getMediaStorage().put(buffer, {
-      directory: "floor-plans",
-      fileName: filename,
-      contentType: metadata.data.type,
+    const isSceneImage =
+      kindValue === "scene-preview" || kindValue === "panorama";
+
+    const stored = await storage.put(fileBytes, {
+      directory: isSceneImage
+        ? `tours/${tourSlug}/scenes`
+        : `tours/${tourSlug}`,
+      fileName: `${kindValue}-${randomUUID()}.${imageType.extension}`,
+      contentType: imageType.contentType,
     });
 
-    return apiSuccess(storedMedia, { status: 201 });
+    return apiSuccess(
+      {
+        url: stored.url,
+        originalFileName: file.name,
+      },
+      { status: 201 },
+    );
   } catch (error) {
     if (error instanceof MediaStorageConfigurationError) {
       return apiError(
-        "STORAGE_NOT_CONFIGURED",
-        "Durable upload storage is not configured for this environment.",
+        "MEDIA_STORAGE_NOT_CONFIGURED",
+        error.message,
         503,
       );
     }
+
+    console.error("Tour image upload failed", error);
+
     return apiError(
-      "INTERNAL_SERVER_ERROR",
-      "Failed to upload image file.",
+      "UPLOAD_FAILED",
+      "Unable to upload the image.",
       500,
     );
   }

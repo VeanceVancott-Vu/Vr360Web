@@ -19,25 +19,27 @@ export default async function EditScenePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [scene, tours, categories, allScenes] = await Promise.all([
-    prisma.scene.findUnique({
-      where: { id },
-      include: { hotspots: { orderBy: { sortOrder: "asc" } } },
-    }),
+  const scene = await prisma.scene.findUnique({
+    where: { id },
+    include: { hotspots: { orderBy: { sortOrder: "asc" } } },
+  });
+  if (!scene) notFound();
+
+  const [tours, categories, allScenes] = await Promise.all([
     prisma.tour.findMany({
       orderBy: { titleEn: "asc" },
-      select: { id: true, titleEn: true },
+      select: { id: true, titleEn: true, slug: true },
     }),
     prisma.category.findMany({
       orderBy: { sortOrder: "asc" },
       select: { id: true, nameEn: true },
     }),
     prisma.scene.findMany({
+      where: { tourId: scene.tourId },
       orderBy: { titleEn: "asc" },
-      select: { id: true, titleEn: true },
+      select: { id: true, titleEn: true, slug: true },
     }),
   ]);
-  if (!scene) notFound();
 
   return (
     <>
@@ -101,7 +103,9 @@ export default async function EditScenePage({
           scene={{
             ...scene,
             multiresConfig: jsonObject(scene.multiresConfig),
-            cubemapUrls: Array.isArray(jsonObject(scene.multiresConfig)?.cubemapUrls)
+            cubemapUrls: Array.isArray(
+              jsonObject(scene.multiresConfig)?.cubemapUrls,
+            )
               ? (jsonObject(scene.multiresConfig)?.cubemapUrls as string[])
               : null,
             media: [],

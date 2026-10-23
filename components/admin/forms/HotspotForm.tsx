@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import { AdminField } from "@/components/admin/forms/SceneForm";
 import type { PickedCoordinates } from "@/components/admin/editors/HotspotCoordinatePicker";
+import { adminRequest } from "@/lib/api/admin-client";
 import type { HotspotDto } from "@/lib/types";
 import { hotspotInputSchema } from "@/lib/validation/schemas";
 
@@ -74,43 +75,41 @@ export function HotspotForm({
 
   async function submit(values: HotspotOutput) {
     setMessage(null);
-    const response = await fetch(
-      id ? `/api/admin/hotspots/${id}` : "/api/admin/hotspots",
-      {
-        method: id ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      },
-    );
-    const result = (await response.json()) as {
-      success: boolean;
-      error?: { message?: string };
-    };
-    if (!response.ok || !result.success) {
-      setMessage(result.error?.message ?? "Hotspot save failed.");
-      return;
+    try {
+      await adminRequest<unknown>(
+        id ? `/api/admin/hotspots/${id}` : "/api/admin/hotspots",
+        {
+          method: id ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(values),
+        },
+      );
+      setMessage(id ? "Hotspot saved." : "Hotspot created.");
+      if (!id) {
+        reset({
+          sceneId,
+          type: "INFORMATION",
+          pitch: coordinates.pitch,
+          yaw: coordinates.yaw,
+          labelVi: "",
+          labelEn: "",
+          contentVi: null,
+          contentEn: null,
+          icon: "Info",
+          targetSceneId: null,
+          imageUrl: null,
+          audioUrl: null,
+          externalUrl: null,
+          sortOrder: 0,
+          isVisible: true,
+        });
+      }
+      onSaved?.();
+    } catch (error: unknown) {
+      setMessage(
+        error instanceof Error ? error.message : "Hotspot save failed.",
+      );
     }
-    setMessage(id ? "Hotspot saved." : "Hotspot created.");
-    if (!id) {
-      reset({
-        sceneId,
-        type: "INFORMATION",
-        pitch: coordinates.pitch,
-        yaw: coordinates.yaw,
-        labelVi: "",
-        labelEn: "",
-        contentVi: null,
-        contentEn: null,
-        icon: "Info",
-        targetSceneId: null,
-        imageUrl: null,
-        audioUrl: null,
-        externalUrl: null,
-        sortOrder: 0,
-        isVisible: true,
-      });
-    }
-    onSaved?.();
   }
 
   const nullable = {
@@ -297,14 +296,18 @@ export function HotspotForm({
             onClick={async () => {
               const label = initial?.labelVi || initial?.labelEn || "hotspot";
               if (!window.confirm(`Are you sure you want to delete "${label}"?`)) return;
-              const response = await fetch(`/api/admin/hotspots/${id}`, {
-                method: "DELETE",
-              });
-              if (response.ok) {
+              try {
+                await adminRequest<unknown>(`/api/admin/hotspots/${id}`, {
+                  method: "DELETE",
+                });
                 setMessage("Hotspot deleted.");
                 onSaved?.();
-              } else {
-                setMessage("Failed to delete hotspot.");
+              } catch (error: unknown) {
+                setMessage(
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to delete hotspot.",
+                );
               }
             }}
           >

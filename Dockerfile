@@ -6,6 +6,12 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 
 FROM base AS builder
+ARG NEXT_PUBLIC_SITE_URL
+ARG S3_PUBLIC_BASE_URL
+ARG MEDIA_ALLOWED_ORIGINS
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+ENV S3_PUBLIC_BASE_URL=$S3_PUBLIC_BASE_URL
+ENV MEDIA_ALLOWED_ORIGINS=$MEDIA_ALLOWED_ORIGINS
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN DATABASE_URL=mysql://build:build@127.0.0.1:3306/build npm run db:generate

@@ -101,17 +101,67 @@ export async function clearAdminSession(): Promise<void> {
   });
 }
 
+
 export function isSameOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
-  if (!origin) return false;
+
+  if (!origin) {
+    console.warn("[isSameOrigin] Missing Origin header", {
+      requestUrl: request.url,
+      host: request.headers.get("host"),
+      forwardedHost: request.headers.get("x-forwarded-host"),
+      forwardedProto: request.headers.get("x-forwarded-proto"),
+    });
+    return false;
+  }
+
   try {
     const requestUrl = new URL(request.url);
     const originUrl = new URL(origin);
-    return (
+
+    // Primary check: origin matches the internal request URL (e.g. localhost)
+    const matchesRequestUrl =
       originUrl.protocol === requestUrl.protocol &&
-      originUrl.host === requestUrl.host
-    );
+      originUrl.host === requestUrl.host;
+
+    // Fallback check: origin matches the Host header sent by the client.
+    // This handles the case where the app is accessed via a LAN/external IP
+    // but Next.js internally resolves the URL as localhost. In that scenario
+    // the browser sends the real IP as the Origin, while request.url uses
+    // localhost — causing a false mismatch.
+    const hostHeader =
+      request.headers.get("x-forwarded-host") ||
+      request.headers.get("host") ||
+      "";
+    const proto =
+      request.headers.get("x-forwarded-proto") ||
+      originUrl.protocol.replace(":", "");
+    const hostOrigin = `${proto}://${hostHeader}`;
+    const matchesHost = (() => {
+      try {
+        const hostUrl = new URL(hostOrigin);
+        return (
+          originUrl.protocol === hostUrl.protocol &&
+          originUrl.host === hostUrl.host
+        );
+      } catch {
+        return false;
+      }
+    })();
+
+    const allowed = matchesRequestUrl || matchesHost;
+
+    console.log("[isSameOrigin] Origin check", {
+      origin: originUrl.origin,
+      requestOrigin: requestUrl.origin,
+      hostOrigin,
+      allowed,
+    });
+
+    return allowed;
   } catch {
+    console.warn("[isSameOrigin] Invalid origin or request URL");
     return false;
   }
 }
+

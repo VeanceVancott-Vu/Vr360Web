@@ -55,6 +55,8 @@ describe("PanoramaViewer lifecycle", () => {
         return viewer;
       }),
       addScene: vi.fn(() => viewer),
+      addHotSpot: vi.fn(() => viewer),
+      removeHotSpot: vi.fn(() => true),
     };
     pannellumMocks.viewerFactory.mockImplementation((_container, config) => {
       if ("default" in config) currentSceneId = config.default.firstScene;
@@ -144,5 +146,44 @@ describe("PanoramaViewer lifecycle", () => {
 
     unmount();
     expect(viewer.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it("updates localized hotspots without reloading the panorama", async () => {
+    const scene = demoTour.scenes[0]!;
+    const { rerender } = render(
+      <PanoramaViewer scene={scene} language="en" onHotspotClick={vi.fn()} />,
+    );
+
+    await waitFor(() =>
+      expect(pannellumMocks.viewerFactory).toHaveBeenCalledTimes(1),
+    );
+    act(() => {
+      for (const listener of listeners.get("load") ?? []) listener();
+    });
+    vi.mocked(viewer.addHotSpot).mockClear();
+    vi.mocked(viewer.removeHotSpot).mockClear();
+    vi.mocked(viewer.addScene).mockClear();
+    vi.mocked(viewer.loadScene).mockClear();
+
+    rerender(
+      <PanoramaViewer scene={scene} language="vi" onHotspotClick={vi.fn()} />,
+    );
+
+    const visibleHotspots = scene.hotspots.filter(
+      (hotspot) => hotspot.isVisible,
+    );
+    await waitFor(() =>
+      expect(viewer.addHotSpot).toHaveBeenCalledTimes(visibleHotspots.length),
+    );
+    expect(viewer.addHotSpot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        createTooltipArgs: { label: visibleHotspots[0]?.labelVi },
+      }),
+      scene.id,
+    );
+    expect(viewer.removeHotSpot).toHaveBeenCalledTimes(scene.hotspots.length);
+    expect(viewer.loadScene).not.toHaveBeenCalled();
+    expect(viewer.addScene).not.toHaveBeenCalled();
+    expect(pannellumMocks.viewerFactory).toHaveBeenCalledTimes(1);
   });
 });

@@ -47,6 +47,26 @@ function assertSafePathSegment(value: string, label: string) {
   }
 }
 
+function safeDirectorySegments(
+  value: string,
+  label: string,
+): string[] {
+  const segments = value.split("/");
+
+  if (segments.length === 0 || segments.some((segment) => !segment)) {
+    throw new MediaStorageConfigurationError(
+      label + " contains an invalid directory path.",
+    );
+  }
+
+  for (const segment of segments) {
+    assertSafePathSegment(segment, label);
+  }
+
+  return segments;
+}
+
+
 async function toUint8Array(file: Blob | Uint8Array) {
   if (file instanceof Uint8Array) return file;
   return new Uint8Array(await file.arrayBuffer());
@@ -85,27 +105,45 @@ export class LocalMediaStorage implements MediaStorage {
       "/" + (options.publicBasePath ?? "uploads").replace(/^\/+|\/+$/g, "");
   }
 
+
   async put(
     file: Blob | Uint8Array,
     options: MediaStoragePutOptions,
   ): Promise<StoredMedia> {
-    assertSafePathSegment(options.directory, "Upload directory");
+    const directorySegments = safeDirectorySegments(
+      options.directory,
+      "Upload directory",
+    );
+
     assertSafePathSegment(options.fileName, "Upload file name");
 
     const targetDirectory = fileSystemPath(
       this.rootDirectory,
-      options.directory,
+      ...directorySegments,
     );
-    const targetPath = fileSystemPath(targetDirectory, options.fileName);
+
+    const targetPath = fileSystemPath(
+      targetDirectory,
+      options.fileName,
+    );
 
     await mkdir(targetDirectory, { recursive: true });
-    await writeFile(targetPath, await toUint8Array(file), { flag: "wx" });
+
+    // "wx" prevents accidentally overwriting an existing file.
+    await writeFile(targetPath, await toUint8Array(file), {
+      flag: "wx",
+    });
 
     return {
       url:
-        this.publicBasePath + "/" + options.directory + "/" + options.fileName,
+        this.publicBasePath +
+        "/" +
+        directorySegments.join("/") +
+        "/" +
+        options.fileName,
     };
   }
+
 
   async remove(url: string): Promise<void> {
     const ownedPrefix = this.publicBasePath + "/";
@@ -193,23 +231,34 @@ export class S3MediaStorage implements MediaStorage {
         : {}),
       ...(options.accessKeyId && options.secretAccessKey
         ? {
-            credentials: {
-              accessKeyId: options.accessKeyId,
-              secretAccessKey: options.secretAccessKey,
-            },
-          }
+          credentials: {
+            accessKeyId: options.accessKeyId,
+            secretAccessKey: options.secretAccessKey,
+          },
+        }
         : {}),
     };
     this.client = options.client ?? new S3Client(clientConfig);
   }
 
+
   private objectKey(options: MediaStoragePutOptions) {
-    assertSafePathSegment(options.directory, "Upload directory");
+    const directorySegments = safeDirectorySegments(
+      options.directory,
+      "Upload directory",
+    );
+
     assertSafePathSegment(options.fileName, "Upload file name");
-    return [this.prefix, options.directory, options.fileName]
+
+    return [
+      this.prefix,
+      ...directorySegments,
+      options.fileName,
+    ]
       .filter(Boolean)
       .join("/");
   }
+
 
   async put(
     file: Blob | Uint8Array,
